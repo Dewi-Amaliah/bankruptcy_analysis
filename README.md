@@ -1,2 +1,3 @@
-# bankruptcy_analysis
-Bankruptcy data analysis for HDDA Group Assignment 
+# Bankruptcy Data Analysis
+
+Bankruptcy data analysis for High Dimensional Data Analysis group assignment. 
