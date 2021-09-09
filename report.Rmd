@@ -7,5 +7,35 @@ output: bookdown::pdf_document2
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(visdat)
 ```
+
+```{r Data}
+data <- readRDS(here::here("data/Bankruptcy.rds"))
+glimpse(data)
+vis_dat(data)
+vis_miss(data)
+```
+
+```{r MissingData}
+Data <- data %>% na.omit()
+mean_EmplUnion <- mean(Data$EmplUnion)
+mean_Ebit <- mean(Data$Ebit)
+mean_Liab <- mean(Data$Liab)
+mean_DaysIn <- mean(Data$DaysIn)
+mean_HeadCourtCityToDE <- mean(Data$HeadCourtCityToDE)
+
+data$EmplUnion <- data %>% pull(EmplUnion) %>% replace_na(mean_EmplUnion)
+data$Ebit <- data %>% pull(Ebit) %>% replace_na(mean_Ebit)
+data$Liab <- data %>% pull(Liab) %>% replace_na(mean_Liab)
+data$DaysIn <- data %>% pull(DaysIn) %>% replace_na(mean_DaysIn)
+data$HeadCourtCityToDE <- data %>% pull(HeadCourtCityToDE) %>% replace_na(mean_HeadCourtCityToDE)
+Bankruptcy <- data %>% na.omit()
+
+glimpse(Bankruptcy)
+vis_miss(Bankruptcy)
+vis_dat(Bankruptcy)
+```
+
 
