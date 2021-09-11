@@ -14,6 +14,7 @@ library(visdat)
 ```{r Data}
 data <- readRDS(here::here("data/Bankruptcy.rds"))
 glimpse(data)
+summary(data)
 vis_dat(data)
 vis_miss(data)
 ```
@@ -34,6 +35,7 @@ data$HeadCourtCityToDE <- data %>% pull(HeadCourtCityToDE) %>% replace_na(mean_H
 Bankruptcy <- data %>% na.omit()
 
 glimpse(Bankruptcy)
+summary(Bankruptcy)
 vis_miss(Bankruptcy)
 vis_dat(Bankruptcy)
 ```
