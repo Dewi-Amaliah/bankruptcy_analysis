@@ -181,8 +181,104 @@ data_clean <- data_op1 %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),
          YearFiled = as.factor(YearFiled))
+row.names(data_clean) <- data_clean$Name
+ggplot(data_clean, aes(x = Ebit)) +
+  geom_histogram()
 ```
 
 
+```{r}
+vis_dat(data_clean)
+```
 
+```{r}
+ggplot(data, aes(x = Employees, y = EmplUnion)) + geom_point() + geom_smooth()
+```
+
+```{r}
+# data wo missing values, number obs as in original data 
+dd <- data_clean %>% ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist(method = "manhattan")
+
+rownames(data_clean) -> attributes(dd)$Labels
+
+cmds<-cmdscale(dd,eig = T)
+
+cmds$points%>%
+as.data.frame()%>%
+rownames_to_column(var = 'Names')->df
+
+p1 <- ggplot(df,aes(x=V1,y=V2,label=`Names`))+ geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
+```
+
+```{r}
+data_clean2 <- data_op2 %>%
+  select(-FirmEnd, -EmplUnion) %>%
+  mutate(DENYOther = as.factor(DENYOther),
+         MonthFiled = as.factor(MonthFiled),
+         YearFiled = as.factor(YearFiled)) 
+row.names(data_clean2) <- data_clean2$Name
+
+# data wo missing values, number obs as in original data 
+dd2 <- data_clean2 %>%  ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist(method = "manhattan")
+
+
+rownames(data_clean2) -> attributes(dd2)$Labels
+
+cmds2<-cmdscale(dd2,eig = T)
+
+cmds2$points%>%
+as.data.frame()%>%
+rownames_to_column(var = 'Names')->df2
+
+df2 <- left_join(df2, data_clean2, by = c("Names" = "Name"))
+
+p2 <- ggplot(df2,aes(x=V1,y=V2,label=`Names`, color = DENYOther))+ geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
+
+p2
+```
+```{r}
+library(patchwork)
+
+p1 + p2 + plot_layout(nrow = 2)
+```
+```{r}
+data <- read_rds(here::here("data/Bankruptcy.rds"))
+
+data_clean3 <- data %>%
+  select(-FirmEnd, -EmplUnion) %>%
+  drop_na() %>%
+  mutate(DENYOther = as.factor(DENYOther),
+         MonthFiled = as.factor(MonthFiled),
+         YearFiled = as.factor(YearFiled)) 
+
+row.names(data_clean3) <- data_clean3$Name
+
+# data wo missing values, number obs as in original data 
+dd3 <- data_clean3 %>%  ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist(method = "manhattan")
+
+
+rownames(data_clean3) -> attributes(dd3)$Labels
+
+cmds3<-cmdscale(dd3,eig = T)
+
+cmds3$points%>%
+as.data.frame()%>%
+rownames_to_column(var = 'Names')->df3
+
+df3 <- left_join(df3, data_clean3, by = c("Names" = "Name"))
+
+p3 <- ggplot(df3,aes(x=V1,y=V2,label=`Names`, color = DENYOther))+ geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
+```
+```{r}
+p3
+```
+```{r}
+p2
+```
+```{r}
+p1
+```
 
