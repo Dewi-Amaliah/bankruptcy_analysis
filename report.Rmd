@@ -12,6 +12,7 @@ library(dplyr)
 library(visdat)
 library(splitstackshape)
 library(lubridate)
+library(patchwork)
 bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 ```
 
@@ -25,7 +26,7 @@ glimpse(bankruptcy)
 ```{r}
 vis_dat(bankruptcy)
 ```
-Note: We can see that FirmEnd does not have any missing values, in fact it has many NULL values that is not detected. Hence, we will change it to NA. 
+- Note: We can see that FirmEnd does not have any missing values, in fact it has many NULL values that is not detected. Hence, we will change it to NA. 
 
 ```{r}
 bankruptcy <- bankruptcy %>%
@@ -34,7 +35,7 @@ bankruptcy <- bankruptcy %>%
                           FirmEnd))
 ```
 
-From the `glimpse` output, we also notice that `SICMajGroup`, which is the industry classification code, has a very long name, so we will separate it to the code and the meaning. 
+- From the `glimpse` output, we also notice that `SICMajGroup`, which is the industry classification code, has a very long name, so we will separate it to the code and the meaning. 
 
 ```{r}
 bankruptcy <- bankruptcy %>%
@@ -46,15 +47,79 @@ bankruptcy <- bankruptcy %>%
 ```
 
 
-Now, let us check again the missing values in data 
+- Now, let us check again the missing values in data 
 
 ```{r}
 vis_dat(bankruptcy)
 ```
 
-**HeadCourtCityToDE**
+```{r}
+vis_miss(bankruptcy)
+```
 
-There are some missing values in `HeadCourtCityToDE`, may be we could impute it using the values in CityFiled, DENYOther, or HeadStAtFiling. One of the row missing is Aruba, so we just google the distance between these cities an impute it (1126 miles). The other two are Canada. We search the address for the firm name and google the distance.
+
+
+
+
+# Variable Discussion 
+
+- The following variables do not need any changes
+  + Name: Name of the firm
+  + Assets: Total assets (in millions of dollars)
+  + CityFiled: City where filing took place
+  + CPI U.S CPI at the time of filing
+  + DENYOther: CityFiled, categorized as Wilmington (DE), New York (NY) or all other cities (OT)
+  + FilingRate: Total number of other bankrupcy filings in the year of this filing
+  + GDP: Gross Domestic Product for the Quarter in which the case was filed
+  + HeadCityPop: The population of the firms headquarters city
+  
+
+- Variables with a lot of missing values are:
+  + FirmEnd: Short description of the event that ended the firm’s existence - We plan to omit this variable for further analysis
+  + EmplUnion: Number of union employees before bankruptcy - We plan to omit this variable for further analysis
+
+
+- The DaysIn (Length of bankruptcy process) variable has about 0.92% missing values. In order to fill the NA's we used the following approach:
+
+- **DaysIn**
+
+Now let us move to `DaysIn` variable 
+
+```{r}
+na_daysin <- filter(bankruptcy, is.na(DaysIn))
+```
+
+Based on google search:
+
+- [AP Industries, Inc.](https://casetext.com/case/in-re-ap-industries-inc?__cf_chl_jschl_tk__=pmd_0e9LcvX3fGC0nT5WJVBShbHDvK9GY2AMZnekCjslbN0-1631333530-0-gqNtZGzNAjujcnBszQd9) filed the bankruptcy on 27/03/1990, disposition made in 26/07/1990 equivalent to 121 days
+
+- [Daisy Systems Corp.](https://caselaw.findlaw.com/us-9th-circuit/1020075.html) filed the bankruptcy on 30/05/1991, the court decided on 24/09/1996 equivalent to 1944 days
+
+- Since there is no data for the remaining two, **we will impute the days in bankruptcy**, based on firm types median. (Hunt International Resources Corp., SIC = 20; McCrory Corp., SIC = 53)
+
+```{r}
+bankruptcy %>% group_by(SIC) %>%
+  summarise(median = median(DaysIn, na.rm = TRUE)) %>% 
+    dplyr::filter(SIC %in% c(20, 53))
+```
+
+
+```{r}
+bankruptcy <- bankruptcy %>%
+  mutate(DaysIn = ifelse(Name == "Hunt International Resources Corp.", 305,
+                                    ifelse(Name == "AP Industries, Inc.", 121,
+                                           ifelse(Name == "Daisy Systems Corp.", 1944,
+                                                  ifelse(Name == "McCrory Corp.", 683, DaysIn)))))
+
+summary(bankruptcy$DaysIn)
+```
+
+- There is no suspicious anomaly. The bankcruptcy process can take a long time. 
+
+
+- **HeadCourtCityToDE** (The distance in miles from the firms headquarters city to the city in which the case was filed)
+
+- There are some missing values in `HeadCourtCityToDE`, may be we could impute it using the values in CityFiled, DENYOther, or HeadStAtFiling. One of the row missing is Aruba, so we just google the distance between these cities an impute it (1126 miles). The other two are Canada. We search the address for the firm name and google the distance.
 Loewen Group, Inc (British Columbia to Wilmington = 2942).
 Philip Services Corp. (Ontario to Wilmington = 1234)
 
@@ -72,49 +137,16 @@ bankruptcy <- bankruptcy %>%
 summary(bankruptcy$HeadCourtCityToDE)
 ```
 
-The minimun distance is 1 , when inspected the state of headquarter and the city filed its in the same state, so it made sense.
-
-**DaysIn**
-
-Now let us move to `DaysIn` variable 
-
-```{r}
-na_daysin <- filter(bankruptcy, is.na(DaysIn))
-```
-
-Based on google search:
-
-- [AP Industries, Inc.](https://casetext.com/case/in-re-ap-industries-inc?__cf_chl_jschl_tk__=pmd_0e9LcvX3fGC0nT5WJVBShbHDvK9GY2AMZnekCjslbN0-1631333530-0-gqNtZGzNAjujcnBszQd9) filed the bankruptcy on 27/03/1990, disposition made in 26/07/1990 equivalent to 121 days
-
-- [Daisy Systems Corp.](https://caselaw.findlaw.com/us-9th-circuit/1020075.html) filed the bankruptcy on 30/05/1991, the court decided on 24/09/1996 equivalent to1944 days
-
-- Since there is no data for the remaining two, we will impute the days in bankruptcy, based on firm types median. (Hunt International Resources Corp., SIC = 20; McCrory Corp., SIC = 53)
-
-```{r}
-bankruptcy %>% group_by(SIC) %>%
-  summarise(median = median(DaysIn, na.rm = TRUE))
-```
+- The minimun distance is 1 , when inspected the state of headquarter and the city filed its in the same state, so it made sense.
 
 
-```{r}
-bankruptcy <- bankruptcy %>%
-  mutate(DaysIn = ifelse(Name == "Hunt International Resources Corp.", 305,
-                                    ifelse(Name == "AP Industries, Inc.", 121,
-                                           ifelse(Name == "Daisy Systems Corp.", 1944,
-                                                  ifelse(Name == "McCrory Corp.", 683, DaysIn)))))
-
-summary(bankruptcy$DaysIn)
-```
-
-There is no suspicious anomaly. The bankcruptcy process can take a long time. 
-
-**Employees**
+- **Employees** (Number of employees before bankruptcy)
 
 ```{r}
 na_employees <- filter(bankruptcy, is.na(Employees))
 ```
 
-The number of employees of County Seat, Inc. is missing. According to [Chicago Tribune](https://www.chicagotribune.com/news/ct-xpm-1996-11-29-9611290135-story.html), the store has an average 5-10 employees and it has 740 stores. We will take 7 employees per store. So the employees before bankruptcy are approximately 5180. 
+- The number of employees of County Seat, Inc. is missing. According to [Chicago Tribune](https://www.chicagotribune.com/news/ct-xpm-1996-11-29-9611290135-story.html), the store has an average 5-10 employees and it has 740 stores. We will take 7 employees per store. So the employees before bankruptcy are approximately 5180. 
 
 ```{r}
 bankruptcy <- bankruptcy %>%
@@ -123,67 +155,63 @@ bankruptcy <- bankruptcy %>%
 summary(bankruptcy$Employees)
 ```
 
-Is it possible that companies only have 1 employees? 
+- Is it possible that companies only have 1 employees? 
 
 ```{r}
 ggplot(bankruptcy, aes(x = Employees)) +
   geom_histogram()
 ```
 
-```{r}
-vis_dat(data)
-```
+- **Sales** (Sales before bankruptcy (in dollars))
 
-**Sales**
-
-The missing values in Sales is imputed by its median of sales grouped by SIC
+- The missing values in Sales is imputed by its median of sales grouped by SIC
 
 ```{r}
-na_sales <- filter(data, is.na(Sales))
+na_sales <- filter(bankruptcy, is.na(Sales))
 
-data %>%
+bankruptcy %>%
   group_by(SIC) %>%
   summarise(median = median(Sales, na.rm = TRUE))
 
-data <- data %>%
+bankruptcy <- bankruptcy %>%
   mutate(Sales = ifelse(Name == "County Seat, Inc.", 1645170944, Sales))
-
 ```
 
 **Ebit and Liab**
 
 ```{r}
-na_ebit <- filter(data, is.na(Ebit))
-na_liab <- filter(data, is.na(Liab))
+na_ebit <- filter(bankruptcy, is.na(Ebit))
+na_liab <- filter(bankruptcy, is.na(Liab))
 ```
 
 Options for treat the missing values in `Liab` and `Ebit`:
 1. Omit the missing values in these variables
 
 ```{r}
-data_op1 <- data %>%
+bank_data_op1 <- bankruptcy %>%
   filter(!is.na(Ebit) & !is.na(Liab))
 ```
 
 2. Impute with its median grouped by SIC 
 
 ```{r}
-data_op2 <- data %>% group_by(SIC) %>%
+bank_data_op2 <- bankruptcy %>% group_by(SIC) %>%
   mutate(Ebit = ifelse(is.na(Ebit), median(Ebit,na.rm=TRUE), Ebit))
 
-data_op2 <- data_op2 %>% group_by(SIC) %>%
+bank_data_op2 <- bank_data_op2 %>% group_by(SIC) %>%
   mutate(Liab = ifelse(is.na(Liab), median(Liab,na.rm=TRUE), Liab))
 ```
 
 ```{r}
-vis_dat(data_op2)
+vis_dat(bank_data_op1)
+vis_dat(bank_data_op2)
 ```
-# Clean Data
+# Sample MDS for diff Data Cleaning Approaches
 
-Let say we use data_op1. 
+- Let say we use bank_data_op1
 
 ```{r}
-data_clean <- data_op1 %>%
+data_clean <- bank_data_op1 %>%
   select(-FirmEnd, -EmplUnion) %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),
@@ -198,58 +226,70 @@ ggplot(data_clean, aes(x = Ebit)) +
 vis_dat(data_clean)
 ```
 
-```{r}
-ggplot(data, aes(x = Employees, y = EmplUnion)) + geom_point() + geom_smooth()
-```
+# Data Clean Option 1
 
 ```{r}
-# data wo missing values, number obs as in original data 
-dd <- data_clean %>% ungroup() %>% select_if(is.numeric) %>%
+#data w/o missing values, number obs as in original data 
+
+dd <- data_clean %>% 
+  ungroup() %>% 
+  select_if(is.numeric) %>%
   scale %>% dist(method = "manhattan")
 
 rownames(data_clean) -> attributes(dd)$Labels
 
-cmds<-cmdscale(dd,eig = T)
+cmds <- cmdscale(dd,eig = T)
 
-cmds$points%>%
-as.data.frame()%>%
-rownames_to_column(var = 'Names')->df
+cmds$points %>%
+as.data.frame() %>%
+rownames_to_column(var = 'Names')-> df
 
-p1 <- ggplot(df,aes(x=V1,y=V2,label=`Names`))+ geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
+p1 <- ggplot(df,
+             aes(x=V1,
+                 y=V2,
+                 label=`Names`)) + 
+  geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
 ```
 
+
+# Data Clean Option 2
+
 ```{r}
-data_clean2 <- data_op2 %>%
+data_clean2 <- bank_data_op2 %>%
   select(-FirmEnd, -EmplUnion) %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),
          YearFiled = as.factor(YearFiled)) 
 row.names(data_clean2) <- data_clean2$Name
 
-# data wo missing values, number obs as in original data 
-dd2 <- data_clean2 %>%  ungroup() %>% select_if(is.numeric) %>%
+#data w/o missing values, number obs as in original data
+
+dd2 <- data_clean2 %>%  
+  ungroup() %>% 
+  select_if(is.numeric) %>%
   scale %>% dist(method = "manhattan")
 
 
 rownames(data_clean2) -> attributes(dd2)$Labels
 
-cmds2<-cmdscale(dd2,eig = T)
+cmds2 <- cmdscale(dd2,eig = T)
 
-cmds2$points%>%
-as.data.frame()%>%
-rownames_to_column(var = 'Names')->df2
+cmds2$points %>%
+as.data.frame() %>%
+rownames_to_column(var = 'Names')-> df2
 
 df2 <- left_join(df2, data_clean2, by = c("Names" = "Name"))
 
-p2 <- ggplot(df2,aes(x=V1,y=V2,label=`Names`, color = DENYOther))+ geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
-
-p2
+p2 <- ggplot(df2,
+             aes(x=V1,
+                 y=V2,
+                 label=`Names`, 
+                 color = DENYOther)) + 
+  geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
 ```
-```{r}
-library(patchwork)
 
-p1 + p2 + plot_layout(nrow = 2)
-```
+# Data Clean Option 3
+
 ```{r}
 data <- read_rds(here::here("data/Bankruptcy.rds"))
 
@@ -262,30 +302,55 @@ data_clean3 <- data %>%
 
 row.names(data_clean3) <- data_clean3$Name
 
-# data wo missing values, number obs as in original data 
-dd3 <- data_clean3 %>%  ungroup() %>% select_if(is.numeric) %>%
+#data w/o missing values, number obs as in original data
+
+dd3 <- data_clean3 %>%  
+  ungroup() %>% 
+  select_if(is.numeric) %>%
   scale %>% dist(method = "manhattan")
 
 
 rownames(data_clean3) -> attributes(dd3)$Labels
 
-cmds3<-cmdscale(dd3,eig = T)
+cmds3 <- cmdscale(dd3,eig = T)
 
-cmds3$points%>%
-as.data.frame()%>%
-rownames_to_column(var = 'Names')->df3
+cmds3$points %>%
+as.data.frame() %>%
+rownames_to_column(var = 'Names')-> df3
 
 df3 <- left_join(df3, data_clean3, by = c("Names" = "Name"))
 
-p3 <- ggplot(df3,aes(x=V1,y=V2,label=`Names`, color = DENYOther))+ geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
+p3 <- ggplot(df3,
+             aes(x=V1,
+                 y=V2,
+                 label=`Names`, 
+                 color = DENYOther)) + 
+  geom_text(size=2) # xlim(0, 30) + ylim(-20,20)
 ```
-```{r}
-p3
-```
-```{r}
-p2
-```
+
+# Plots
+
 ```{r}
 p1
 ```
 
+```{r}
+p2
+```
+
+```{r}
+p3
+```
+
+
+# Ruben's Consultation 
+
+- We plan to omit EmplUnion in further analysis, due to 30 percent missing values - ?
+
+```{r}
+ggplot(bankruptcy, aes(x = Employees, y = EmplUnion)) + geom_point() + geom_smooth()
+```
+
+- Omit all Ebit (Earnings (operating income) at time of filing (in millions of dollars)) and Liab (Total amount of money owed (in millions of dollars)) mising values or Impute - ?
+
+- In the employee summary statistic we have one employee is it ppossible to have one emp - ?
