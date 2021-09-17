@@ -220,7 +220,7 @@ Options for data used in the analysis
 bank_data_op1 <- bankruptcy %>%
   ungroup() %>%
   filter(!is.na(Ebit) & !is.na(Liab)) %>%
-  select(-FirmEnd, -EmplUnion) %>%
+  dplyr::select(-FirmEnd, -EmplUnion) %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),
          YearFiled = as.factor(YearFiled))
@@ -234,7 +234,7 @@ bank_data_op2 <- bankruptcy %>% group_by(SIC) %>%
   ungroup() %>%
   mutate(Ebit = ifelse(is.na(Ebit), median(Ebit,na.rm=TRUE), Ebit),
          Liab = ifelse(is.na(Liab), median(Liab,na.rm=TRUE), Liab)) %>%
-  select(-FirmEnd, -EmplUnion) %>%
+  dplyr::select(-FirmEnd, -EmplUnion) %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),
          YearFiled = as.factor(YearFiled))
@@ -245,7 +245,7 @@ row.names(bank_data_op2) <- bank_data_op2$Name
 
 ```{r}
 bank_data_op3 <- read_rds(here::here("data/Bankruptcy.rds")) %>%
-  select(c(-FirmEnd, -EmplUnion)) %>%
+  dplyr::select(c(-FirmEnd, -EmplUnion)) %>%
   na.omit() %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),

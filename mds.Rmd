@@ -1,0 +1,139 @@
+---
+title: "MDS"
+author: "Group 18"
+date: "17/09/2021"
+output: html_document
+---
+
+```{r setup_mds, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(visdat)
+library(splitstackshape)
+library(lubridate)
+library(patchwork)
+library(MASS)
+bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
+```
+
+```{r}
+bankruptcy <- bankruptcy %>%
+  mutate(FirmEnd = ifelse(FirmEnd == "",
+                          NA,
+                          FirmEnd))
+
+bankruptcy <- bankruptcy %>%
+  separate(SICMajGroup,
+           into = c("SIC", "SICMajGroup"),
+           sep = "\\s",
+           extra = "merge") %>%
+  mutate(SIC = as.factor(SIC))
+
+# get the median of DaysIn 
+bankruptcy %>% group_by(SIC) %>%
+  summarise(median = median(DaysIn, na.rm = TRUE)) %>% 
+    dplyr::filter(SIC %in% c(20, 53))
+
+# actual value of AP Industries and Daisy System Corp can be found in the internet
+# Hunt International and McCrory use the median imputation 
+bankruptcy <- bankruptcy %>%
+  mutate(DaysIn = ifelse(Name == "Hunt International Resources Corp.", 305,
+                                    ifelse(Name == "AP Industries, Inc.", 121,
+                                           ifelse(Name == "Daisy Systems Corp.", 1944,
+                                                  ifelse(Name == "McCrory Corp.", 683, DaysIn)))))
+# bankruptcy <- bankruptcy %>%
+#   mutate(DaysIn = ifelse(Name == "AP Industries, Inc.", 121,
+#                                            ifelse(Name == "Daisy Systems Corp.", 1944, DaysIn)))
+
+# search the address of Divi Hotels, Loewen, and Philip, google the distance between them 
+# hence imputation using all the actual values
+bankruptcy <- bankruptcy %>%
+  mutate(HeadCourtCityToDE = ifelse(Name == "Divi Hotels, N.V.", 1126,
+                                    ifelse(Name == "Loewen Group, Inc.", 2942,
+                                           ifelse(Name == "Philip Services Corp. (1999)", 1234,                                HeadCourtCityToDE))))
+
+# google search result
+bankruptcy <- bankruptcy %>%
+  mutate(Employees = ifelse(Name == "County Seat, Inc.", 5180, Employees))
+
+# omit NA in Liab and Ebit 
+bank_data_op1 <- bankruptcy %>%
+  filter(!is.na(Ebit) & !is.na(Liab)) %>%
+  dplyr::select(-FirmEnd, -EmplUnion) %>%
+  mutate(DENYOther = as.factor(DENYOther),
+         MonthFiled = as.factor(MonthFiled),
+         YearFiled = as.factor(YearFiled))
+
+#row.names(clean_data) <- clean_data$Name
+```
+
+
+
+
+## Classical MDS
+
+```{r}
+dd <- bank_data_op1 %>% 
+  select_if(is.numeric) %>%
+  scale %>% dist()
+
+#rownames(clean_data) -> attributes(dd)$Labels
+
+
+cmds <- cmdscale(dd,eig = T)
+
+df <- cmds$points %>%
+  as.data.frame() %>%
+  rownames_to_column(var = 'Names')
+
+df_join <- cbind(df, bank_data_op1)
+
+p <- ggplot(df_join,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = SICMajGroup)) + 
+  geom_text(size=3, alpha = 0.6) +
+  theme(legend.position = "none")
+
+plotly::ggplotly(p)
+```
+
+
+```{r}
+ggplot(df_join,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = YearFiled)) + 
+  geom_text(size=3, alpha = 0.6)
+```
+
+```{r}
+ggplot(df_join,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = DENYOther)) + 
+  geom_text(size=3, alpha = 0.6)
+```
+
+
+**Goodness of Fit**
+
+```{r}
+str(cmds$GOF)
+cmds$eig
+```
+
+## Nonclassical MDS
+
+```{r}
+smds<-sammon(dd)
+k_op <- isoMDS(dd)
+
+smds$stress
+```
+
+
