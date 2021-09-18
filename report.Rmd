@@ -257,12 +257,28 @@ There are two main types of clustering namely, hierarchical and non-hierarchical
 ### Hierarchical Clustering:
 
 ```{r}
-data_clean %>% ungroup() %>% select_if(is.numeric) %>%
-  scale %>% dist() %>% hclust(method = "complete") -> DataClusterC
+clust_data <- data_clean %>% 
+  ungroup %>% 
+  dplyr::filter(Name != "Texaco Inc.") %>% 
+  dplyr::select(c(Assets, CPI, DaysIn, Employees, 
+                  Ebit, Liab, FilingRate, GDP, 
+                  PrimeFiling, Sales)) %>%
+  select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "ward.D2")
 
-DataClusterC %>% plot(cex=.5)
-DataClusterC %>% rect.hclust(k=10)
+  
+
+clust_data %>% plot(cex=.5)
+clust_data %>% rect.hclust(k=3)
 ```
+
+
+- Trying diff values of k to get the best k
+  + when k = 2 value is around 34
+  + when k = 3 value is around 29
+  + when k = 4 value is around 23
+  + when k = 6 value is around 21
+  + when k = 7 value is around 18
 
 ```{r}
 data_clean %>% ungroup() %>% select_if(is.numeric) %>%
@@ -273,10 +289,31 @@ DataClusterW %>% rect.hclust(k=10)
 ```
 
 
-### Non-hierarchical Clustering:
+### Non-hierarchical Clustering: (Dont consider this)
 
 ```{r}
-DataClusterK <- kmeans((data_clean %>% ungroup() %>% select_if(is.numeric)), 10, nstart = 5)
+kmeans_data <- data_clean %>% 
+  dplyr::select(Assets, CPI, Employees, DaysIn, 
+                Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)
+
+DataClusterK <- kmeans(kmeans_data, 10, nstart = 5)
+
+# kmean_withinss <- function(k) {
+#     cluster <- kmeans(DataClusterK, k)
+#     return (cluster$tot.withinss)
+# }
+# 
+# max_k <-20 
+# # Run algorithm over a range of k 
+# wss <- sapply(6:max_k, kmean_withinss)
+# 
+# elbow <-data.frame(2:max_k, wss)
+# 
+# ggplot(elbow, aes(x = X2.max_k, 
+#                   y = wss)) +
+#     geom_point() +
+#     geom_line() +
+#     scale_x_continuous(breaks = seq(1, 20, by = 1))
 
 cl6 <- cutree(DataClusterW, 6)
 cl10 <- cutree(DataClusterW, 10)
