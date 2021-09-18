@@ -263,6 +263,17 @@ p1 <- ggplot(df,
 ```
 
 ```{r}
+# "Name"              "Assets"           
+#  [3] "CityFiled"         "CPI"              
+#  [5] "DaysIn"            "DENYOther"        
+#  [7] "Ebit"              "Employees"        
+#  [9] "FilingRate"        "GDP"              
+# [11] "HeadCityPop"       "HeadCourtCityToDE"
+# [13] "HeadStAtFiling"    "Liab"             
+# [15] "MonthFiled"        "PrimeFiling"      
+# [17] "Sales"             "SIC"              
+# [19] "SICMajGroup"       "YearFiled"   
+
 data_clean%>%
   select_if(is.numeric)%>% #Only use numeric variables
   prcomp(scale. = TRUE)->pca #Do pca 
@@ -271,6 +282,10 @@ summary(pca)
 screeplot(pca,type="lines")
 
 biplot(pca)
+data_clean<- data_clean%>%
+  mutate(abbreviation=abbreviate(Name))
+
+rownames(pca$x)<-pull(data_clean,abbreviation)
 
 PCbiplot <- function(PC, x="PC1", y="PC2") {
   PC <- fit
@@ -360,6 +375,7 @@ pca_p+
 ```{r}
 biplot(pca, expand=10, xlim=c(-0.80, 0.6), ylim=c(-0.4, 0.4))
 ```
+
 ```{r}
 library(ggfortify)
 autoplot(pca,
@@ -370,8 +386,53 @@ autoplot(pca,
 autoplot(pca,label = TRUE, label.size = 3,
          loadings = TRUE, loadings.colour = 'blue',
          loadings.label = TRUE, loadings.label.size = 3)
+
+
+nooutlier<- bank_data_op1%>%
+    mutate(abbreviation=abbreviate(Name))%>%
+  select(c(abbreviation,Assets,CPI,Ebit,Liab,FilingRate,GDP,PrimeFiling,Sales))%>%
+  filter(abbreviation!="TIn.")
+
+nooutlier%>%
+  select_if(is.numeric)%>% #Only use numeric variables
+  prcomp(scale. = TRUE)->pca_no #Do pca 
+summary(pca_no)
+
+screeplot(pca_no,type="lines")
+rownames(pca_no$x)<-pull(nooutlier,abbreviation)
+
+autoplot(pca_no,label = TRUE, label.size = 3,
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
+
+
+
 ```
+
+1. Same Direction -> Positive Correlation 
+
+Employees + Ebit + Liab + Assests + Sales 
+
+Filing + GDP + CPI 
+
+2. 90 degree -> weak relationship 
+
+
+
+Employees + Ebit + Liab + Assests + Sales with CPI + Filing + GDP
+
+Employees + Ebit + Liab + Assests + Sales HAS Weak positive correlation with Days In + Prime filing
+Employees + Ebit + Liab + Assests + Sales HAS Weak negative correlation with headcity pop and headcourtcitytoDE
+
+
+3. Opposite Direction 
+
+Prime filing has negative correlation with cpi + gdp
+
 ```{r}
+library(corrplot)
+M = cor(data_clean%>%select_if(is.numeric))
+corrplot(M, method = 'number') 
 
 soec_pc_loadings <- as_tibble(pca$rotation[,1]) %>%
   mutate(variable = rownames(pca$rotation), 
@@ -387,5 +448,58 @@ geom_hline(yintercept=c(-1/sqrt(nrow(pca$rotation)),
   geom_point(aes(x=indx, y=value)) + 
   scale_x_continuous(breaks = c(1:9))+
   ggtitle("Loadings for PC1")
+```
+
+
+```{r}
+library(boot)
+compute_PC1 <- function(data, index) {
+  pc1 <- prcomp(data[index, ], center = TRUE, scale = TRUE)$rotation[, 1]
+  if (sign(pc1[1]) < 0)
+    pc1 <- -pc1
+  return(pc1)
+}
+
+PC1_boot <- boot(data = data_clean%>%select_if(is.numeric), compute_PC1, R = 1000)
+colnames(PC1_boot$t) <- colnames(data_clean%>%select_if(is.numeric))
+PC1_boot_ci <- as_tibble(PC1_boot$t) %>%
+  gather(var, coef) %>%
+  mutate(var = factor(
+    var,
+    levels = c(
+      "Assets" ,
+       "CPI",          
+  "DaysIn", 
+  "Ebit"  ,
+  "Employees",
+  "FilingRate",
+  "GDP" ,
+  "HeadCityPop" ,
+  "HeadCourtCityToDE",
+  "Liab" ,            
+ "PrimeFiling",
+ "Sales"  
+    )
+  )) %>%
+  group_by(var) %>%
+  summarise(
+    q2.5 = quantile(coef, 0.025),
+    q5 = median(coef),
+    q97.5 = quantile(coef, 0.975)
+  ) %>%
+  mutate(t0 = PC1_boot$t0)
+
+ggplot(PC1_boot_ci, aes(x = var, y = t0)) +
+  geom_hline(yintercept = 1 / sqrt(9),
+             linetype = 2,
+             colour = "red") +
+  geom_point() +
+  geom_errorbar(aes(ymin = q2.5, ymax = q97.5), width = 0.1) +
+  geom_hline(yintercept = 0,
+             size = 3,
+             colour = "white") +
+  xlab("") + ylab("coefficient") +
+  ggtitle("Decoding variable importance using PC1 loadings")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
 ```
 
