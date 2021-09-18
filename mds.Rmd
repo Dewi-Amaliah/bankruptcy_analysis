@@ -14,6 +14,8 @@ library(splitstackshape)
 library(lubridate)
 library(patchwork)
 library(MASS)
+library(mclust)
+library(forcats)
 bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 ```
 
@@ -68,14 +70,12 @@ bank_data_op1 <- bankruptcy %>%
 #row.names(clean_data) <- clean_data$Name
 ```
 
-
-
-
 ## Classical MDS
 
 ```{r}
 dd <- bank_data_op1 %>% 
-  select_if(is.numeric) %>%
+  dplyr::select(c(Assets, DaysIn, Employees, CPI, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)) %>%
+  #select_if(is.numeric) %>%
   scale %>% dist()
 
 #rownames(clean_data) -> attributes(dd)$Labels
@@ -136,4 +136,39 @@ k_op <- isoMDS(dd)
 smds$stress
 ```
 
+## Cluster analysis 
+
+```{r}
+dd_cl <- bank_data_op1 %>% 
+  filter(Name != "Texaco Inc.") %>%
+  dplyr::select(c(Assets, CPI, Daysin, Employees, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)) %>%
+  #select_if(is.numeric) %>%
+  scale %>% dist()
+
+
+hcl <- hclust(dd_cl,method='ward.D2')
+dendo <- plot(hcl)
+```
+
+
+```{r}
+memb_ward <- cutree(hcl, 6)
+#company_cluster <- cbind(bank_data_op1, memb_ward)
+```
+
+```{r}
+hclust(dd_cl,method='average')%>% cutree(k = 6)->  memb_two_al
+hclust(dd_cl,method='centroid')%>% cutree(k = 6)-> memb_two_cm
+hclust(dd_cl,method='complete')%>% cutree(k = 6)-> memb_two_cl
+
+adjustedRandIndex(memb_ward,memb_two_al)
+```
+
+```{r}
+adjustedRandIndex(memb_ward,memb_two_cm)
+```
+
+```{r}
+adjustedRandIndex(memb_ward,memb_two_cl)
+```
 
