@@ -272,7 +272,13 @@ p1 <- ggplot(df,
 # [13] "HeadStAtFiling"    "Liab"             
 # [15] "MonthFiled"        "PrimeFiling"      
 # [17] "Sales"             "SIC"              
-# [19] "SICMajGroup"       "YearFiled"   
+# [19] "SICMajGroup"       "YearFiled"  
+
+# Data exploration 
+
+A = cor(data_clean%>%select_if(is.numeric))
+corrplot(A, method = 'number') 
+
 
 data_clean%>%
   select_if(is.numeric)%>% #Only use numeric variables
@@ -287,25 +293,24 @@ data_clean<- data_clean%>%
 
 rownames(pca$x)<-pull(data_clean,abbreviation)
 
-
-
-```
-```{r}
 library(ggfortify)
-autoplot(pca,
-         loadings = TRUE, loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3)
-
-
 autoplot(pca,label = TRUE, label.size = 3,
          loadings = TRUE, loadings.colour = 'blue',
          loadings.label = TRUE, loadings.label.size = 3)
 
 
+```
+
+We can see that theres an outlier, so lets remove it. 
+
+```{r}
+
+
 nooutlier<- bank_data_op1%>%
-    mutate(abbreviation=abbreviate(Name))%>%
-  select(c(abbreviation,Assets,CPI,Ebit,Liab,FilingRate,GDP,PrimeFiling,Sales))%>%
-  filter(abbreviation!="TIn.")
+    mutate(abb=abbreviate(Name))
+nooutlier <- nooutlier%>%
+  dplyr::select(c(abb,Assets, CPI, Employees, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales))%>%
+  dplyr::filter(abb!="TIn.")
 
 nooutlier%>%
   select_if(is.numeric)%>% #Only use numeric variables
@@ -313,9 +318,9 @@ nooutlier%>%
 summary(pca_no)
 
 screeplot(pca_no,type="lines")
-rownames(pca_no$x)<-pull(nooutlier,abbreviation)
+rownames(pca_no$x)<-pull(nooutlier,abb)
 
-autoplot(pca_no,label = TRUE, label.size = 3,
+autoplot(pca_no,label = TRUE, label.size = 2.5,
          loadings = TRUE, loadings.colour = 'blue',
          loadings.label = TRUE, loadings.label.size = 3)
 
@@ -332,14 +337,6 @@ Filing + GDP + CPI
 
 2. 90 degree -> weak relationship 
 
-
-
-Employees + Ebit + Liab + Assests + Sales with CPI + Filing + GDP
-
-Employees + Ebit + Liab + Assests + Sales HAS Weak positive correlation with Days In + Prime filing
-Employees + Ebit + Liab + Assests + Sales HAS Weak negative correlation with headcity pop and headcourtcitytoDE
-
-
 3. Opposite Direction 
 
 Prime filing has negative correlation with cpi + gdp
@@ -349,15 +346,15 @@ Prime filing has negative correlation with cpi + gdp
 library(ggplot2)
 library(ggrepel)
 
-soec_pca_pcs <- as_tibble(pca$x[, 1:2])%>%
-  mutate(cnt=data_clean$Name)
+soec_pca_pcs <- as_tibble(pca_no$x[, 1:2])%>%
+  mutate(cnt=nooutlier$abb)
 soec_pca_var <-
-  tibble(n = 1:length(pca$sdev), evl = pca$sdev ^ 2)
-soec_pca_evc <- as_tibble(pca$rotation[, 1:2]) %>%
+  tibble(n = 1:length(pca_no$sdev), evl = pca_no$sdev ^ 2)
+soec_pca_evc <- as_tibble(pca_no$rotation[, 1:2]) %>%
   mutate(
-    origin = rep(0, 12),
-    variable = colnames(data_clean%>%select_if(is.numeric)),
-    varname = rownames(pca$rotation)
+    origin = rep(0, 9),
+    variable = colnames(nooutlier%>%select_if(is.numeric)),
+    varname = rownames(pca_no$rotation)
   ) %>%
   mutate(
     PC1s = PC1 * (soec_pca_var$evl[1] * 2.5),
@@ -403,27 +400,21 @@ pca_p+
 
 
 
-```{r}
-biplot(pca, expand=10, xlim=c(-0.80, 0.6), ylim=c(-0.4, 0.4))
-```
-
 
 
 ```{r}
-library(corrplot)
-M = cor(data_clean%>%select_if(is.numeric))
-corrplot(M, method = 'number') 
 
-soec_pc_loadings <- as_tibble(pca$rotation[,1]) %>%
-  mutate(variable = rownames(pca$rotation), 
-         indx = 1:nrow(pca$rotation),
-         ymin=rep(0, nrow(pca$rotation)))
+
+soec_pc_loadings <- as_tibble(pca_no$rotation[,1]) %>%
+  mutate(variable = rownames(pca_no$rotation), 
+         indx = 1:nrow(pca_no$rotation),
+         ymin=rep(0, nrow(pca_no$rotation)))
 
 
 
 ggplot(soec_pc_loadings) + 
-geom_hline(yintercept=c(-1/sqrt(nrow(pca$rotation)),
-                          1/sqrt(nrow(pca$rotation))), colour="red")+
+geom_hline(yintercept=c(-1/sqrt(nrow(pca_no$rotation)),
+                          1/sqrt(nrow(pca_no$rotation))), colour="red")+
   geom_errorbar(aes(x=indx, ymin=ymin, ymax=value), width = 0) +
   geom_point(aes(x=indx, y=value)) + 
   scale_x_continuous(breaks = c(1:9))+
@@ -440,25 +431,15 @@ compute_PC1 <- function(data, index) {
   return(pc1)
 }
 
-PC1_boot <- boot(data = data_clean%>%select_if(is.numeric), compute_PC1, R = 1000)
-colnames(PC1_boot$t) <- colnames(data_clean%>%select_if(is.numeric))
+PC1_boot <- boot(data = nooutlier%>%select_if(is.numeric), compute_PC1, R = 1000)
+colnames(PC1_boot$t) <- colnames(nooutlier%>%select_if(is.numeric))
 PC1_boot_ci <- as_tibble(PC1_boot$t) %>%
   gather(var, coef) %>%
   mutate(var = factor(
     var,
     levels = c(
-      "Assets" ,
-       "CPI",          
-  "DaysIn", 
-  "Ebit"  ,
-  "Employees",
-  "FilingRate",
-  "GDP" ,
-  "HeadCityPop" ,
-  "HeadCourtCityToDE",
-  "Liab" ,            
- "PrimeFiling",
- "Sales"  
+     "Assets"  ,    "CPI", "Employees", "Ebit" ,"Liab" ,"FilingRate" , "GDP"  ,      
+"PrimeFiling" ,"Sales" 
     )
   )) %>%
   group_by(var) %>%
