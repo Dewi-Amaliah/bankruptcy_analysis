@@ -26,6 +26,15 @@ library(visdat)
 library(splitstackshape)
 library(lubridate)
 library(patchwork)
+library(tidyverse)
+library(dplyr)
+library(learningtower)
+library(kableExtra)
+library(FactoMineR)
+library(factoextra)
+library(patchwork)
+library(corrplot)
+library(ggrepel)
 bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 ```
 
@@ -73,7 +82,7 @@ vis_dat(bankruptcy)
 vis_miss(bankruptcy)
 ```
 
-
+Assets, CPI, Employees, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales
 
 # Variable Discussion 
 
@@ -83,7 +92,7 @@ vis_miss(bankruptcy)
   + CityFiled: City where filing took place
   + CPI U.S CPI at the time of filing
   + DENYOther: CityFiled, categorized as Wilmington (DE), New York (NY) or all other cities (OT)
-  + FilingRate: Total number of other bankrupcy filings in the year of this filing
+  + FilingRate: Total number of other bankruptcy filings in the year of this filing
   + GDP: Gross Domestic Product for the Quarter in which the case was filed
   + HeadCityPop: The population of the firms headquarters city
   
@@ -372,14 +381,71 @@ p3
 ```
 
 
-# Ruben's Consultation Questions
 
-- We plan to omit EmplUnion in further analysis, due to 30 percent missing values - ?
+
+# PCA 
 
 ```{r}
-ggplot(bankruptcy, aes(x = Employees, y = EmplUnion)) + geom_point() + geom_smooth()
+data <- read_rds(here::here("data/Bankruptcy.rds"))
+
+data_clean3 <- data %>%
+  select(-FirmEnd, -EmplUnion) %>%
+  drop_na() %>%
+  mutate(DENYOther = as.factor(DENYOther),
+         MonthFiled = as.factor(MonthFiled),
+         YearFiled = as.factor(YearFiled))
 ```
 
-- Omit all Ebit (Earnings (operating income) at time of filing (in millions of dollars)) and Liab (Total amount of money owed (in millions of dollars)) mising values or Impute - ?
 
-- In the employee summary statistic we have one employee is it ppossible to have one emp - ?
+```{r}
+data_clean%>%
+  select_if(is.numeric)%>% #Only use numeric variables
+  prcomp(scale. = TRUE)->pca #Do pca 
+summary(pca)
+```
+
+
+```{r}
+screeplot(pca,type="lines")
+```
+
+
+```{r}
+biplot(pca)
+```
+
+# Diff PCA
+
+```{r}
+pca_data <- data_clean %>%
+  dplyr::select(Assets, CPI, Employees, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)
+
+pca <- prcomp(pca_data[,c(1:9)], center = TRUE,scale. = TRUE)
+
+pca
+```
+
+```{r}
+eig.value <- get_eigenvalue(pca)
+eig.value %>%  kable(caption = "Eigen Values") %>% 
+kable_styling(c("striped", "hover"))
+```
+
+
+```{r}
+fviz_eig(pca, addlabels = TRUE)
+```
+
+```{r}
+var <- get_pca_var(pca)
+var
+```
+
+```{r}
+fviz_pca_var(pca, col.var = "black")
+```
+
+
+
+
+
