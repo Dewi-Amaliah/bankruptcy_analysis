@@ -60,7 +60,7 @@ filter(Name != "Promus Companies Inc. (Harrahs Jazz Co. only)")
 We noticed that `SICMajGroup`,the industry classification code,has a lengthy name, therefore in order to keep it more identifiable, the code was separated into a new factor variable `SIC` and its meaning in the `SICMajGroup`. 
 
 ```{r prelim-sic}
-glimpse(bankruptcy)
+
 bankruptcy <- bankruptcy %>%
   separate(SICMajGroup, 
            into = c("SIC", "SICMajGroup"), 
