@@ -1,10 +1,10 @@
 ---
-title: "MDS"
-author: "Group 18"
-date: "17/09/2021"
-output: pdf_document
+title: "Assignment 2 Report"
+author: Aarathy Babu, Dewi Amaliah, Priya Dingorkar, Rahul Bharadwaj
+output: bookdown::pdf_document2
+---
 
-```{r setup_mds, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(dplyr)
@@ -13,10 +13,16 @@ library(splitstackshape)
 library(lubridate)
 library(patchwork)
 library(MASS)
-library(mclust)
-library(forcats)
+
 bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 ```
+
+# Introduction
+
+# Preliminary Analysis
+
+# Multidimensional Scaling (MDS)
+
 
 ```{r}
 bankruptcy <- bankruptcy %>%
@@ -75,9 +81,9 @@ data_clean <- bank_data_op1 %>%
 
 ## Multidimensional Scaling (MDS)
 
-MDS is a statistical method to represent multidimensional data into lower-dimensional (2D) data. The `bankruptcy` data has 21 variables which can be considered as data with high dimensions. Thus, MDS is relevant to represent this data in two-dimensional visualisation. This method uses distance to do the job. Hence, we limit the MDS only to incorporate numerical variables so that we can use Euclidean distance or is known as classical MDS. Moreover, as in the preliminary data analysis shown in the previous section, we will only incorporate numerical variables directly related to bankruptcy. Those variables are: `Assest`, `DaysIn`, `Employees`, `CPI`, `Ebit`, `Liab`, `FillingRate`, `GDP`, `PrimeFilling`, and `Sales`. We also know that these variables have different unit measurements. For example, liability is measured in a million $US dollar, while sales are measured in $US dollar. Hence, we will standardise the variable prior to conducting the MDS.     
+MDS is a statistical method to represent multidimensional data into lower-dimensional (2D) data. The `bankruptcy` data has 21 variables which can be considered as data with high dimensions. Thus, MDS is relevant to represent this data in two-dimensional visualisation. This method uses distance to do the job. Hence, we limit the MDS only to incorporate numerical variables so that we can use Euclidean distance or is known as classical MDS. We will also only incorporate numerical variables directly related to bankruptcy. Those variables are: `Assest`, `DaysIn`, `Employees`, `CPI`, `Ebit`, `Liab`, `FillingRate`, `GDP`, `PrimeFilling`, and `Sales`. These variables has different unit of measurements, hence we standardise it.
 
-**Classical MDS**
+### Classical MDS
 
 ```{r}
 dd <- data_clean %>% 
@@ -107,9 +113,9 @@ ggplot(df_join,
   theme_bw()
 ```
 
-Figure \ref{fig:cmds-plot} conveys the lower-dimensional representation of bankruptcy data using classical MDS. Texaco Inc (Tin.), Baldwin-United Corporation (B-UC), Federated Department Stores, Inc. (FDSI), LTV Corp. (1986) (LTCV.(1) are potential outliers. On closer inspection of the data, we find that these firms have the largest assets. Moreover, Texaco Inc. also has high operating income, sales, and liability.  
+Figure \@ref(fig:cmds-plot) conveys that Texaco Inc (Tin.), Baldwin-United Corporation (B-UC), Federated Department Stores, Inc. (FDSI), LTV Corp. (1986) (LTCV.(1) are potential outliers. On closer inspection of the data, we find that these firms have the largest assets. Moreover, Texaco Inc. also has high operating income, sales, and liability.  
 
-As mentioned previously, the aim of MDS is to visualise the firms in 2D scatter plot. However, this objective will be less clearly achieved in  \ref{fig:cmds-plot} since too many observations overlapped each other. Hence, we decided to exclude Texaco Inc. and re-conduct classical MDS. This give us clearer visualisation as follows:
+As mentioned previously, the aim of MDS is to visualise the firms in 2D scatter plot. However, this objective will be less clearly achieved in Figure \@ref(fig:cmds-plot) since too many observations overlapped each other. Hence, we decide to exclude Texaco Inc. and re-conduct classical MDS. This gives us a clearer visualisation as follows:
 
 
 ```{r}
@@ -197,22 +203,62 @@ ggplot(df_join_excl,
   theme_bw()
 ```
 
-Figure \ref{cmds-plot-excl} suggests that the visual representation of the rest firms other than Texaco, Inc. remains the same. B-UC, LTCV.(1, and FDSI are still far apart from other firms. It implies that our MDS is pretty robust. However, since it gives a clearer visualisation, we will use the data without Texaco, Inc. in the rest of MDS analysis.  
 
-Figure \ref{cmds-plot-excl} also implies that most firms that filed for bankruptcy has similar characteristic since it tend to plotted near even overlapped each other. We can also say, for example, that First Capital Holdings Corp. (FCHC) and Southland Corp. (SthlCrp.) are similar in which the firms filed for bankruptcy in the pretty similar situasion of macroeconomic performance (GDP and CPI). 
+Figure \@ref(fig:cmds-plot-excl) suggests that the visual representation of the rest firms other than Texaco, Inc. remains the same. B-UC, LTCV.(1, and FDSI are still far apart from other firms. It implies that our MDS is pretty robust. However, since it gives a clearer visualisation, we will use the data without Texaco, Inc. in the rest of MDS analysis. It also implies that most firms that filed for bankruptcy have similar characteristics since they tend to be plotted near or even overlapped with each other. We can also see that some firms are spread out. It means that these firms have different profile. 
 
+## Goodness of Fit
 
-**Goodness of Fit**
-
-The objective of classical MDS is to minimise the strain. This aim could be achieved when Euclidean distance is used and thus all eigenvalues are positive. It is also worth to inspect the Goodness of Fit (GoF) of the solution. If two GoF values are equal, then we can conclude that the MDS solution is optimal. 
-
-The following is the GoF values of the classical MDS:
+In this part, we inspect the MDS’s Goodness of Fit. If two GoF values are equal, which is the ideal condition if we use Eucledean distance, then we can conclude that the strain is minimised and the solution is optimal. Here is the GoFs of the MDS:
 
 ```{r}
 str(cmds_excl$GOF)
 ```
 
-The two GoF values are equal, which is the case if we are using Eucledean distance. These values also infer that our classical MDS solution is optimal. Moreover, when we inspected the eigenvalues result, we found the following: 
+We find that the $GoF_1$ and $GoF_2$ are equal. Hence, our MDS is optimal. We also find that all the eigenvalues are positive (see Appendix). 
+
+### Comparison with non-Classical MDS
+
+Next, we compare the classical MDS with non-classical MDS (Sammon mapping). The stress function could be used to indicate the accuracy of representation. The lower, the better the accuracy. 
+
+```{r}
+smds<-sammon(dd_excl)
+smds$stress
+```
+
+
+We find that the stress is relatively low (0.121), thus non-classical MDS also produce fairly accurate representation of the bankruptcy data. Moreover, the plot (see Appendix) also produce relatively similar result when compared with the classical MDS. Hence, we can conclude that the result is fairly robust with the change of methodology. 
+
+### Visualisation with Categorical Variable
+
+This section will show the MDS solution by also take the categorical variables into account. Too keep the report concise, we displaye some categorical features in the Appendix and only display interesting finding in this subsection. 
+
+```{r cmds-year, fig.cap = "Classical MDS solution plotted by year when the bankruptcy filed."}
+ggplot(df_join_excl,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = YearFiled)) + 
+  geom_text(size=3) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+The classical MDS solution plotted by year as shown in Figure \@ref(fig:cmds-year) shows that there is pattern regarding the year. Firms who filed for bankruptcy in the same year tend to be similar each other. This could be because in the same year, CPI, filing rate, and prime interest are pretty similar. This is an interesting finding since we could infer that macroeconomic ,i.e, market condition could profile firms who filed for bankruptcy. 
+
+
+# Principal Component Analysis (PCA)
+
+# Cluster Analysis
+
+# Limitations
+
+- We only use numerical data in the analysis due to the complexity of incorporating non-numeric data. However, we tried to also display that categorical variable when visualising the MDS result. 
+
+# Conclusions
+
+# Appendix
+
+**Eigenvalues of classical MDS**
 
 ```{r}
 min(cmds_excl$eig)
@@ -220,22 +266,35 @@ min(cmds_excl$eig)
 
 Since the values has e-12, it is reciprocal to 2 with 12 trailing zeros. Hence, even though it looks negative, it is very close, even indistinguishable from zero.  That is why the value of $GoF_1$ and $GoF_2$ are equal. 
 
-**Comparison with non-Classical MDS**
+**MDS plot using Sammon mapping**
 
-Next, we compare the classical MDS with non-classical MDS. One of non-classical MDS methods is Sammon mapping which use numerical optimisation. The stress function could be used to indicate the accuracy of representation. The lower, the better the accuracy. The strees value of Sammon mapping is displayes as follows:
+```{r sammon-plot, fig.cap="MDS solution using Sammon mapping"}
+df_join_excl <-add_column(df_join_excl,Sammon1=smds$points[,1],
+                     Sammon2=smds$points[,2])
 
-```{r}
-smds<-sammon(dd_excl)
-smds$stress
+ggplot(df_join_excl,aes(x=Sammon1,y=Sammon2, label=`Names`))+ geom_text(size=2) +
+  theme_bw()
 ```
 
-This values is relatively low, so we can say that the non-classical MDS also produce fairly accurate representation of the bankruptcy data. Moreover, the plot (included in Appendix) also produce relatively similar result when compared with the classical MDS. Hence, we can conclude that the result is fairly robust with the change of methodology. 
+**Additional plots of MDS based on the city where the bankruptcy filed**
 
-**Visualisation with Categorical Variable**
+```{r cmds-city, fig.cap = "Classical MDS solution plotted by city where the bankruptcy filed."}
+ggplot(df_join_excl,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = DENYOther)) + 
+  geom_text(size=3) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  guides(color=guide_legend(title="City"))
+```
 
-As mentioned previously, we only use numerical data in the analysis to allow us calculate Eucledean distance and perform classical MDS. Hence, to also take the categorical variables into account, we display plots based on some categorical features in the data.
+Figure \@ref(fig:cmds-city) shows no specific pattern of bankruptcy regarding the city where it is filed. The firms who similar to each other (as seen in the overlapped text) could filed for bankruptcy in different city. Besides, firms who are potentially outliers (B-UC, LTCV.(1, and FDSI) are not filed their bankruptcy in Delaware. 
 
-Figure \ref{cmds-industry} shows the classical MDS solution by industry classification. Note that in the original data, there are 55 industry. This number is to big to be plotted, hence we collapse some industry which has the similar sector, for example manufacture, mining, construction, and finance. 
+**Additional plots of MDS based on industry**
+
+Figure \@ref(fig:cmds-industry) shows the classical MDS solution by industry classification. Note that in the original data, there are 55 industry. This number is too big to be plotted, hence we collapse some industry which has the similar sector, for example manufacture, mining, construction, and finance. 
 
 ```{r cmds-industry, fig.cap = "Classical MDS solution plotted by industry."}
 ggplot(df_join_excl,
@@ -251,52 +310,4 @@ ggplot(df_join_excl,
                                  "#2ECC71", "#EB984E", "pink", "magenta", "black"))
 ```
 
-Figure \ref{cmds-industry} suggests that there is no clear specific pattern of the firm bankruptcy regarding the industry. Wholesale and retail firms is bit more spread out. Manufacture industry is also observed to be spread out everywhere and could be because this industry has many observations. Further, B-UC and SthmCrp. are observed to be relatively further apart from the other real estate firms since they have bigger assets. 
-
-
-```{r cmds-city, fig.cap = "Classical MDS solution plotted by city where the bankruptcy filed."}
-ggplot(df_join_excl,
-             aes(x=V1,
-                 y=V2,
-                 label= Names,
-                 color = DENYOther)) + 
-  geom_text(size=3) +
-  theme_bw() +
-  theme(legend.position = "bottom") +
-  guides(color=guide_legend(title="City"))
-```
-
-Figure \ref{cmds-city} shows no specific pattern of bankruptcy regarding the city where it is filed. The firms who similar to each other (as seen in the overlapped text) could filed for bankruptcy in different city. Besides, firms who are potentially outliers (B-UC, LTCV.(1, and FDSI) are not filed their bankruptcy in Delaware. 
-
-```{r cmds-year, fig.cap = "Classical MDS solution plotted by year when the bankruptcy filed."}
-ggplot(df_join_excl,
-             aes(x=V1,
-                 y=V2,
-                 label= Names,
-                 color = YearFiled)) + 
-  geom_text(size=3) +
-  theme_bw() +
-  theme(legend.position = "bottom")
-```
-
-The classical MDS solution plotted by year as shown in Figure \ref{fig:cmds-year} shows that there is pattern regarding the year. firms who filed for bankruptcy in the same year tend to be similar each other. This could be because in the same year, CPI, filing rate, and prime interest are pretty similar. This is an interesting finding since we could infer that macroeconomic ,i.e, market condition could profile firms who filed for bankruptcy. 
-
-
-## Limitations 
-
-- We only use numerical data in the analysis due to the complexity of incorporating non-numeric data. However, we tried to also display that categorical variable when visualising the MDS result. 
-- Interpreting plots with too many categories in legend is hard. We tried to tackle this by collapsing categories but we find that it still hard. Hence, interactive plot with ability to hover the firms would be better. 
-
-
-## Appendix
-
-MDS plot using Sammon mapping.
-
-```{r sammon-plot, fig.cap="MDS solution using Sammon mapping"}
-df_join_excl <-add_column(df_join_excl,Sammon1=smds$points[,1],
-                     Sammon2=smds$points[,2])
-
-ggplot(df_join_excl,aes(x=Sammon1,y=Sammon2, label=`Names`))+ geom_text(size=2) +
-  theme_bw()
-```
-
+Figure \@ref(fig:cmds-industry) suggests that there is no clear specific pattern of the firm bankruptcy regarding the industry. Wholesale and retail firms is bit more spread out. Manufacture industry is also observed to be spread out everywhere and could be because this industry has many observations. Further, B-UC and SthmCrp. are observed to be relatively further apart from the other real estate firms since they have bigger assets. 

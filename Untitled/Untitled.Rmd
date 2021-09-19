@@ -1,0 +1,47 @@
+---
+title: "Assignment 2 Report"
+author:
+- familyname: Babu
+  othernames: Aarathy
+  address: Monash University
+  email: mcurie.notreal@gmail.com
+  correspondingauthor: true
+  qualifications: 31230008
+- familyname: Amaliah
+  othernames: Dewi
+  address: Monash University
+  qualifications: 31251587
+- familyname: Dingorkar
+  othernames: Priya
+  address: Monash University
+  qualifications: 31292917
+- familyname: Bharadwaj
+  othernames: Rahul
+  address: Monash University
+  qualifications: 31322239
+department: Department of\newline Econometrics &\newline Business Statistics
+organization: High Dimensional Data Analysis
+bibliography: references.bib
+biblio-style: authoryear-comp
+linestretch: 1.5
+output:
+  MonashEBSTemplates::report:
+    fig_caption: yes
+    fig_height: 5
+    fig_width: 8
+    includes:
+      in_header: preamble.tex
+    keep_tex: yes
+    number_sections: yes
+    citation_package: biblatex
+    toc: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE, messages=FALSE, warning=FALSE)
+
+library(ggplot2)
+```
+
+
+
