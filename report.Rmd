@@ -33,7 +33,7 @@ Before carrying out further analysis of the data, let us conduct some preliminar
 
 
 ```{r prelim-skimr}
-skimr::skim(bankruptcy)
+glimpse(bankruptcy)
 ```
 
 It can be observed that there are quite a number of empty values present in `FirmEnd` which are essentially `NULL` values. Therefore, we have converted these into`NA` values. 
@@ -74,8 +74,8 @@ The missing values in the data has been visualized as shown in \@ref(fig:prelim-
 It can be observed that `FirmEnd` has the highest number of missing values, followed by `EmplUnion`. The strategy employed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts the description of the end of Firm's existance , it doesn't provide significant value to the analysis and it can be excluded. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related and `EmplUnion` is be a subset of `Employees`, therefore removing `EmplUnion` which has too many missing values would not affect our analysis significantly as the variable Employees explains similar aspect. 
 
 ```{r prelim-vismiss, fig.cap="Overview of missing values in the data"}
-vis_miss(bankruptcy)+
-  ggtitle("Missing values in the Data")
+vis_dat(bankruptcy)+
+  ggtitle("Overview of data with missing values")
 
 
 bankruptcy<- bankruptcy%>%
