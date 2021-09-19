@@ -41,18 +41,19 @@ bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 
 # Introduction
 
-The UCLA-LoPucki Bankruptcy Research Database (BRD) is a UCLA School of Law data gathering, data linking, and data distribution initiative. The goal of the BRD is to encourage bankruptcy research by making bankruptcy data available to academic investigators worldwide. All of the data was gathered when the companies declared bankruptcy. In this study, we will use a variety of high-dimensional analysis approaches like Multidimesnionla Scaling, Principle Component Analysis and Clustering to extract useful insights from the data.
+The UCLA-LoPucki Bankruptcy Research Database (BRD) is a UCLA School of Law data gathering, data linking, and data distribution initiative. The goal of the BRD is to encourage bankruptcy research by making bankruptcy data available to academic investigators worldwide. All of the data was gathered when the companies declared bankruptcy. In this study, we will use a variety of high-dimensional analysis approaches like Multidimensional Scaling, Principle Component Analysis and Clustering to extract useful insights from the data.
 
 
 ```{r, out.width=450}
 knitr::include_graphics("data/bank.jpg")
+#link of the image - https://www.businessrescueexpert.co.uk/wp-content/uploads/2018/07/Assets-in-Bankruptcy.jpg
 ```
 
 \pagebreak
 
 # Acknowledgement
 
-Our sincere gratitude goes out to Ruben Loaiza-Maya and the our tutor Ari Handayani for their guidance and support. Our heartfelt thanks go to Ruben Loaiza-Maya and our instructor Ari Handayani for their advice and assistance. Their culminating efforts have placed us in a situation where we can produce this report collectively while showcasing our competence to employ diverse solutions that can be used with high dimensional data.
+Our sincere gratitude goes out to Ruben Loaiza-Maya and the our tutor Ari Handayani for their guidance and support. Their culminating efforts have placed us in a situation where we can produce this report collectively while showcasing our competence to employ diverse solutions that can be used with high dimensional data.
 
 
 \pagebreak
@@ -87,10 +88,9 @@ the case was filed
 - SICMajGroup: Standard industrial clasification code
 - YearFiled: Year bankruptcy was filed
 
-Let us further examine the bankruptcy statistics. We will undertake some data analysis exploratory stages as well as data analysis, data cleansing and discussion. We will also go through the numerous approaches used for this high-dimensional data in detail later. The clean dataset is then submitted to multidimensional scales, analysis of principal components and clustering and to find about what the bankruptcy data would be most actionable. We will also examine the limitations and conclusions of our investigation.
+Let us further examine the bankruptcy statistics. We will undertake some preliminary data analysis. We will also go through the numerous approaches used for this high-dimensional data in detail later.
 
 \pagebreak
-
 
 
 ```{r}
@@ -139,18 +139,95 @@ data_clean <- bank_data_op1 %>%
 
 # Princple Component Analysis (PCA)
 
-Now that we've seen how to input this high-dimensional data into Multidimensional scaling (MDS) to obtain a low (typically 2) dimensional representation. Let us now perform a Principal Component Analysis (PCA), which is a dimensional-reduction method that is frequently used to reduce the dimensional of large data sets by transforming a large set of variables into a smaller one that still contains the majority of the information in the large set.
+- Now that we've seen how to input this high-dimensional data into Multidimensional scaling (MDS) to obtain a low (typically 2) dimensional representation. Let us now perform a Principal Component Analysis (PCA), which is a dimensional-reduction method that is frequently used to reduce the dimensional of large data sets by transforming a large set of variables into a smaller one that still contains the majority of the information in the large set.
+
+- On performing a PCA on the clean dataset during the data investigation process we found that, just like MDS sees Texaco Inc. which comes under Petroleum SIC and Refining And Related Industries as the outlier we get similar results when we feed the complete dataset to carry out PCA.
+
+- Keeping in mind, the word limit we have constrained to show only the PCA using the data without any outliers. Note the complete analysis of PCA for the data can be found in the Appendix section at the end of this report.
+
+- Let's carry out PCA on our bankruptcy data. Lets investigate if our data is a good fit for PCA. Let's us further investigate how the variables in our data are correlated and how many PC's explain the variation of our data.
+
+- Before we apply this principle to our data, it is very important that we standardized our variables as this ensures that results are not sensitive to the units of measurement. Thus giving us more accurate analysis.
+
+## PCA without outlier
+
+```{r}
+nooutlier <- data_clean %>%
+    mutate(abb=abbreviate(Name))
+
+nooutlier <- nooutlier%>%
+  dplyr::filter(abb!="TIn.")
+
+nooutlier%>%
+  select_if(is.numeric)%>%
+  prcomp(scale. = TRUE)->pca_no_out
+
+summary(pca_no_out)
+```
+
+- Using the `summary` function we can infer the following:
+  + Proportion of variance explained by the first four PCs together is now 67.99%
+  + Proportion of variance explained by the first and second PC alone is 26.41% and 22.24% respectively
+  + Using kaisers rule, choose those PC's whose variance and standard deviation greater than 1, we will choose 5 PC's that explains the most variation in our data.
+
+- Let us now use the scree plot to find the total number of PC's that best explain our data.
+
+```{r screeplot, fig.cap="Screeplot"}
+screeplot(pca_no_out,type="lines") 
+```
+
+- Interestingly the scree plot and the kaiser's rule do not agree with each other. But since the scree plot is a more accurate measure in helping us confirm that most of the variations is captured by the first three principal components from our dataset.
+
+- As we can see from the summary of our PCA that our third PC explains approx 11% of variation in our data but we cannot visualize this with a biplot. Nevertheless we still plot the biplot for our first two PC's as they explain around 50.00% of variation in our data.
+
+
+```{r biplotout, fig.cap="PCA Biplot without Outliers"}
+rownames(pca_no_out$x)<-pull(nooutlier,abb)
+
+autoplot(pca_no_out,label = TRUE, label.size = 2.5,
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 4.5) +
+  labs(title = "Biplot on Bankruptcy without Outliers") +
+  theme_bw()
+```
+
+
+- Looking at the figure \@ref(fig:biplotout) we can infer the following:
+  + We can see the various spread of the different companies while filing for bankruptcy. We can see how these companies are been spread out in different direction showing different properties with the surrounding variables. For instance two companies that show similar characteristics are FDSI and LDVC and the ones that show very dissimilar characteristics to each other are FDSI and DESL. 
+  + The further away these vectors or variables are from a PC origin, the more influence they have on that PC. For instance taking a closer a look at the left quadrant, we infer that CPI has more influence, followed by GDP and FilingRate whereas EBit has the least influence among all the variables.
+  + We also know that variables at an angle of 90° indicates no correlation between them, In our data we can infer that Employees with GDP/CPI shows an angle of almost 90° thus showing no correlation between these variables.
+  + We also infer that variables with 180° angle indicates negative correlation. In our case we can say that PrimeFiling is negative correlated with GDP, CPI and FilingRate making an almost 180° angle.
+  + Similarly,variables with angle close to 0° indicates positive correlation. In our dataset we can see that CPI and GDP are highly positively correlated. Assest, Liab, Ebit and Sales are all also positively correlated as the angle between all them is nearly zero.
+
+
+```{r corrplot, fig.cap="PCA Correlation Plot"}
+var <- get_pca_var(pca_no_out)
+fviz_pca_var(pca_no_out, col.var = "black") +
+  labs(title = "Correlation Plot") +
+  theme_bw()
+```
+
+- We can also refer to figure \@ref(fig:corrplot) for more clear visuals of the angles between variables making it clearly for the audience to distinguish between the variables that are positively, negatively or not correlated at all.
+
+
+
+# Limitation
+
+- One of the most important limitation in our PCA analysis is that, as seen in the screeplot at figure we inferred that our data was most explained by the the first three PCs. But due to the limitations of biplot we have visualized our data using the first and the second PCs only. This mean they might be certain patterns in the data and to visualize third PCs we will further need to work on the structure of the data.
+
+
+
+# Appendix
+
+# PCA 
+
+- PCA performed on the complete data including outliers
 
 ```{r}
 data_clean%>%
   select_if(is.numeric)%>%
   prcomp(scale. = TRUE)->pca
 ```
-
-
-- Let's carry out PCA on our bankruptcy data. Lets investigate if our data is a good fit for PCA. Let's us further investigate how the variables in our data are correlated and many PC's explain the variation of our data.
-
-- Before we apply the this principle to our data, it is very important we standardized our variables as this ensures that results are not sensitive to the units of measurement. Thus giving us more accurate analysis.
 
 ```{r}
 summary(pca)
@@ -161,20 +238,21 @@ summary(pca)
 - Using the `summary` function we can infer the following:
   + Proportion of variance explained by the first four PCs together is 73.28%
   + Proportion of variance explained by the first and second PC alone is 30.10% and 23.64% respectively
-  + Using kaisers rule, choose those PC's whose variance and standard deviation greater than 1, in our bankruptcy data we will choose 4 PC's.
+  + Using kaisers rule, we choose those PC's whose variance and standard deviation is greater than 1, in our bankruptcy data we will choose 4 PC's.
 
 
 - Let us now plot use the scree plot to find the total number of PC's that best explain our data.
 
-```{r}
+```{r plotscree, fig.cap="Scree Plot"}
 screeplot(pca,type="lines")
 ```
+
 
 - Using the scree plot we infer that our bankruptcy data is explained by the first three PC's. Also note this is different to kaisers rule.
 
 - Let us now plot a biplot, that will help us infer intersting features about our data. A PCA biplot shows both PC scores of samples (dots) and loadings of variables(vectors).
 
-```{r biplot_bank, fig.cap="PCA Biplot"}
+```{r biplotbank, fig.cap="PCA Biplot"}
 data_clean <- data_clean %>%
   mutate(abbreviation=abbreviate(Name))
 
@@ -189,95 +267,5 @@ autoplot(pca,label = TRUE,
   labs(title = "Biplot on Bankruptcy Dataset") +
   theme_bw()
 ```
-
-- Looking at figure \@ref(fig:biplot_bank), more closely we infer that there is one company that is an outlier to our analysis. PCA allows us to infer that since this observation is very far apart from our variables direction it is best to remove this observation from our data and fit PCA again.
-
-- On further examination on this outlier we infer that Texaco Inc. which comes under Petroleum SIC and Refining And Related Industries is the outlier in our bankruptcy data. This also agrees with our MDS method where we saw the same observations. Let us omit this observation and fit our PCA again.
-
-
-
-## PCA without outlier
-
-```{r}
-nooutlier <- bank_data_op1 %>%
-    mutate(abb=abbreviate(Name))
-
-nooutlier <- nooutlier%>%
-  dplyr::select(c(abb,Assets, CPI, Employees, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales))%>%
-  dplyr::filter(abb!="TIn.")
-
-nooutlier%>%
-  select_if(is.numeric)%>%
-  prcomp(scale. = TRUE)->pca_no_out
-
-summary(pca_no_out)
-```
-
-- As seen earlier similarly using the `summary` function we can infer the following:
-  + Proportion of variance explained by the first four PCs together is now 84.25%
-  + Proportion of variance explained by the first and second PC alone is 33.72% and 29.23% respectively
-  + Using kaisers rule, choose those PC's whose variance and standard deviation greater than 1, now we will choose 3 PC's.
-
-
-- Let us now plot use the scree plot to find the total number of PC's that best explain our data.
-
-```{r}
-screeplot(pca_no_out,type="lines")
-```
-
-- We can now say that scree plot and the kaiser's rule agree with each other thus this helps in confirming that most of the variations is captures by the first three principal components from our dataset.
-
-- As we can see from the summary of our PCA that our third PC explains approx 11% of variation in our data but we cannot visualize this with a biplot. Nevertheless we still plot the biplot for our first two PC's as they explain around 62.95% of variation in our data.
-
-
-```{r biplot_bank_no_out, fig.cap="PCA Biplot without Outlier"}
-rownames(pca_no_out$x)<-pull(nooutlier,abb)
-
-autoplot(pca_no_out,label = TRUE, label.size = 2.5,
-         loadings = TRUE, loadings.colour = 'blue',
-         loadings.label = TRUE, loadings.label.size = 3) +
-  labs(title = "Biplot on Bankruptcy without Outlier") +
-  theme_bw()
-```
-
-
-- Looking at the figure \@ref(fig:biplot_bank_no_out) we can infer that:
-  + We can see the various spread of the different companies before filing for bankruptcy.
-  + The further away these vectors are from a PC origin, the more influence they have on that PC. For instance taking a closer a look at the left quadrant, we infer that CPI has more influence, followed by GDP and FilingRate.
-  + We also that variables 90° angle indicates no correlation between them, In our data we can infer that Employees with GDP/CPI shows an angle of 90° thus showing no correlation
-  + We also infer that variables with 180° angle indicates negative correlation. In our case we can say that PrimeFiling is negative correlated with GDP, CPI and FilingRate making an almost 180° angle.
-  + Similarly,variables with angle close to 0° indicates positive correlation. In our dataset we can see that CPI and GDP are highly positively correlated, Assest, Liab, Ebit abd Sales are all positively correlated as the angle between all them is nearly zero.
-
-
-
-```{r corr_plot, fig.cap="Correlation Plot"}
-var <- get_pca_var(pca_no_out)
-fviz_pca_var(pca_no_out, col.var = "black") +
-  labs(title = "Correlation Plot") +
-  theme_bw()
-```
-
-- We can also refer to figure \@ref(fig:corr_plot) for more clear visuals of the angles between variables making it for the audience to distinguish between the variables that are positively, negatively or not correlated at all
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
