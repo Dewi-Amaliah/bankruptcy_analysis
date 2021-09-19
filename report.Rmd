@@ -57,7 +57,7 @@ filter(Name != "Promus Companies Inc. (Harrahs Jazz Co. only)")
 ```
 
 
-We noticed that `SICMajGroup`,the industry classification code,has a lengthy name, therefore in order to keep it more identifiable, the code was separated into a new factor variable `SIC` and its meaning in the `SICMajGroup`. 
+We have seperated `SICMajGroup` into a new factor variable `SIC` and its meaning in the `SICMajGroup` so as to make it more identifiable without the lengthy name.
 
 ```{r prelim-sic}
 
@@ -69,7 +69,7 @@ bankruptcy <- bankruptcy %>%
   mutate(SIC = as.factor(SIC))
 ```
 
-We can see in the data summary that some of the numeric variables in the data such as `DaysIn`, `Ebit`, `Employees`,`EmplUnion`, `HeadCourtCityToDE`, `Liab` and `Sales` have numerous missing values. The missing values in the data has been visualized as shown in \@ref(fig:prelim-vismiss). Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
+The missing values in the data has been visualized as shown in \@ref(fig:prelim-vismiss). Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
 
 It can be observed that `FirmEnd` has the highest number of missing values, followed by `EmplUnion`. The strategy employed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts the description of the end of Firm's existance , it doesn't provide significant value to the analysis and it can be excluded. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related and `EmplUnion` is be a subset of `Employees`, therefore removing `EmplUnion` which has too many missing values would not affect our analysis significantly as the variable Employees explains similar aspect. 
 
@@ -82,7 +82,7 @@ bankruptcy<- bankruptcy%>%
   select(-FirmEnd,-EmplUnion)
 ```
 
-On further investigation, it was observed that there are 4 companies whose values for `DaysIn` are missing. Based on the publicly available data, values were encoded for **AP Industries** and **Daisy Systems Corp.** (See Appendix for more information). However, the data for **Hunt International Resources Corp.** and **McCrory Corp.** was not available, therefore we have imputed the variable, based on median of the `DaysIn` in the industry classification they belong to.
+The missing values of `DaysIn` in 4 companies were encoded based on the publicly available data and imputation. Values were encoded for **AP Industries** and **Daisy Systems Corp.** (See Appendix for more information). However, the data for **Hunt International Resources Corp.** and **McCrory Corp.** was not available, therefore we have imputed the variable, based on median of the `DaysIn` in the industry classification they belong to.
 
 ```{r prelim-daysin}
 na_daysin <- filter(bankruptcy, is.na(DaysIn))
