@@ -208,6 +208,10 @@ vis_dat(data_op1)
 Let say we use data_op1. 
 
 ```{r}
+#bank_data_op1 <- bankruptcy %>%
+#  filter(!is.na(Ebit) & !is.na(Liab)) %>% 
+#  filter(Name != "Promus Companies Inc. (Harrahs Jazz Co. only)")
+
 data_clean <- data_op1 %>%
   select(-FirmEnd, -EmplUnion) %>%
   mutate(DENYOther = as.factor(DENYOther),
@@ -300,7 +304,7 @@ adjustedRandIndex(memb_ten_w, memb_ten_cm)
 adjustedRandIndex(memb_ten_w, memb_ten_cl)
 ```
 
-The complete linkage method has the highest agreement between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt. The closest method to Ward D2 is Complete Linkage method which is 44% similar to the Ward D2 method.
+The complete linkage method has the highest agreement with Ward D2 between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt. The closest method to Ward D2 is Complete Linkage method which is 44% similar to the Ward D2 method.
 
 #```{r}
 #data_clean2 <- data_op2 %>%
