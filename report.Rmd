@@ -11,7 +11,6 @@ output:
     toc_float:
       collapsed: false
     number_sections: false
-    code_folding: show
     theme: readable
 ---
 
@@ -30,11 +29,14 @@ bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 # Preliminary Data Analysis
 
 
-Before carrying out further analysis of the data, let us conduct some preliminary data analysis. The function skim() from the skimr R package gives an overview of the data. From the summary shown below, we can see that the data is a high dimensional dataset with 21 variables, out of which 6 are character variables and 15 are numeric variables. It can be observed that even though the complete rate of  variable `FirmEnd` is 100%, there are quite a number of empty values present which are essentially `NULL` values. Therefore, the first step of our data preparation would be to convert these empty values to missing `NA` values. 
+Before carrying out further analysis of the data, let us conduct some preliminary data analysis. From the summary shown below, we can see that the data is a high dimensional dataset with 21 variables, out of which 6 are character variables and 15 are numeric variables.
+
 
 ```{r prelim-skimr}
 skimr::skim(bankruptcy)
 ```
+
+It can be observed that there are quite a number of empty values present in `FirmEnd` which are essentially `NULL` values. Therefore, we have converted these into`NA` values. 
 
 ```{r prelim-firmend}
 bankruptcy <- bankruptcy %>%
@@ -43,7 +45,7 @@ bankruptcy <- bankruptcy %>%
                           FirmEnd))
 ```
 
-Before we delve in deeper, the data credibility issues are checked by confirming if the `DaysIn`, `EmplUnion`, `Employees`, `HeadCourtCityToDE`,`MonthFiled`, `YearFiled` and `HeadCityPop` are non-negative values. We have also found that there are observations where the `EmplUnion` values are more than `Employees` which was removed from the data and that certain companies have 1 Employee and 1 EmplUnion values as shown below, which is suspicious but since there is not any concrete evidence that these observations pose data credibility issues, these observations were not excluded for the analysis. 
+The data credibility issues are checked by confirming if the `DaysIn`, `EmplUnion`, `Employees`, `HeadCourtCityToDE`,`MonthFiled`, `YearFiled` and `HeadCityPop` are non-negative values. It was found that there are observations where the `EmplUnion` values are more than `Employees` which was removed from the data and that certain companies have 1 Employee and 1 EmplUnion values as shown below, which is suspicious but since there is not any concrete evidence that these observations pose data credibility issues, these observations were not excluded for the analysis. 
 
 ```{r}
 bankruptcy%>%
@@ -55,7 +57,7 @@ filter(Name != "Promus Companies Inc. (Harrahs Jazz Co. only)")
 ```
 
 
-Looking at the data again through the glimpse() function from dplyr package, we noticed that `SICMajGroup`,the industry classification code,has a lengthy name, therefore inorder to keep it less complicated and more identifyable, we have separated it to the code into a new factor variable `SIC` and retained its meaning in the `SICMajGroup`. 
+We noticed that `SICMajGroup`,the industry classification code,has a lengthy name, therefore in order to keep it more identifiable, the code was separated into a new factor variable `SIC` and its meaning in the `SICMajGroup`. 
 
 ```{r prelim-sic}
 glimpse(bankruptcy)
@@ -67,12 +69,11 @@ bankruptcy <- bankruptcy %>%
   mutate(SIC = as.factor(SIC))
 ```
 
+We can see in the data summary that some of the numeric variables in the data such as `DaysIn`, `Ebit`, `Employees`,`EmplUnion`, `HeadCourtCityToDE`, `Liab` and `Sales` have numerous missing values. The missing values in the data has been visualized as shown in \@ref(fig:prelim-vismiss). Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
 
-Looking into the data summary again, we can see that some of the numeric variables in the data such as `DaysIn`, `Ebit`, `Employees`,`EmplUnion`, `HeadCourtCityToDE`, `Liab` and `Sales` have numerous missing values that is 6.6% of the data is missing. The missing values in the data has been visualized as shown in \@ref(fig:vismiss). Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
+It can be observed that `FirmEnd` has the highest number of missing values, followed by `EmplUnion`. The strategy employed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts the description of the end of Firm's existance , it doesn't provide significant value to the analysis and it can be excluded. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related and `EmplUnion` is be a subset of `Employees`, therefore removing `EmplUnion` which has too many missing values would not affect our analysis significantly as the variable Employees explains similar aspect. 
 
-It can be observed that `FirmEnd` has the highest number of missing values with 94.25% of the values as missing followed by `EmplUnion` with 31.03%. In order to deal with these missing values, the strategy employeed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts a short description of the event that ended the firm’s existence, it does not provide significant value to the analysis. Therefore it can be excluded from further analysis. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related that is `EmplUnion` will always be a subset of `Employees`, therefore removing `EmplUnion` which has too many missing would not affect our analysis significantly as the variable Employees explains the aspect of the number of employees present in the organisation before bankruptcy. 
-
-```{r prelim-vismiss}
+```{r prelim-vismiss, fig.cap="Overview of missing values in the data"}
 vis_miss(bankruptcy)+
   ggtitle("Missing values in the Data")
 
@@ -81,24 +82,14 @@ bankruptcy<- bankruptcy%>%
   select(-FirmEnd,-EmplUnion)
 ```
 
-Moving on to the other variables, we have employeed the strategies listed below, to deal with the missing values in each variable.
-
--  **DaysIn**
-
-Exploring the `DaysIn` variable further, it was observed that there are 4 companies whose values for `DaysIn` as missing. Based on the publicaly available data,
-
-- [AP Industries, Inc.](https://casetext.com/case/in-re-ap-industries-inc?__cf_chl_jschl_tk__=pmd_0e9LcvX3fGC0nT5WJVBShbHDvK9GY2AMZnekCjslbN0-1631333530-0-gqNtZGzNAjujcnBszQd9) filed the bankruptcy on 27/03/1990, disposition made in 26/07/1990, therefore `DaysIn` can be encoded equivalent to 121 days
-
-- [Daisy Systems Corp.](https://caselaw.findlaw.com/us-9th-circuit/1020075.html) filed the bankruptcy on 30/05/1991, the court decided on 24/09/1996 , therefore `DaysIn` can be encoded equivalent to 1944 days. 
-
-However, the data for **Hunt International Resources Corp.** and **McCrory Corp.** was not available, therefore we have imputed the days in bankruptcy, based on median of the length of bankruptcy process in the industry classification they below to (Hunt International Resources Corp., SIC = 20; McCrory Corp., SIC = 53). 
-
-
+On further investigation, it was observed that there are 4 companies whose values for `DaysIn` are missing. Based on the publicly available data, values were encoded for **AP Industries** and **Daisy Systems Corp.** (See Appendix for more information). However, the data for **Hunt International Resources Corp.** and **McCrory Corp.** was not available, therefore we have imputed the variable, based on median of the `DaysIn` in the industry classification they belong to.
 
 ```{r prelim-daysin}
 na_daysin <- filter(bankruptcy, is.na(DaysIn))
 na_daysin%>%
-  select(c(Name,DaysIn))
+  select(c(Name,DaysIn))%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
 ```
 
 ```{r}
@@ -117,29 +108,24 @@ bankruptcy <- bankruptcy %>%
 
 summary(bankruptcy$DaysIn)
 
-bankruptcy%>%
-  ggplot(aes(x=DaysIn))+
-  geom_histogram(fill="blue",alpha=0.7)+
-  theme_minimal()+
-  ggtitle("Histogram of DaysIn")+
-  ylab("Count")
+
 
 ```
 
-The summary statistics and the histogram of the `DaysIn` variable after imputation, suggests no suspicious outliers or anomalies as the bankruptcy has be a lengthy ordeal. 
+The summary statistics of the variable after imputation, suggests no suspicious outliers or anomalies as the bankruptcy can be a lengthy ordeal. 
 
 
-- **HeadCourtCityToDE** 
-
-- The missing values in the variable shown in the table below, are imputed using the values in `CityFiled`, `DENYOther`, or `HeadStAtFiling`. Considering the data on city from the company address available publicaly and the `CityFiled`, the distances between these cities were found and imputed into the data accordingly.  This brings us to the conclusion that the `HeadCourtCityToDE` for [Divi Hotels, N.V.](https://www.bloomberg.com/profile/company/DVH:US) is 1126 miles where as for [Loewen Group, Inc](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001601) (British Columbia to Wilmington)  and [Philip Services Corp.](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001613) (Ontario to Wilmington) is 2942 and 1234 miles respectively. 
-
+The missing values in `HeadCourtCityToDE` shown in the table below, are imputed using the values in `CityFiled`, `DENYOther`, and `HeadStAtFiling`. Considering the publicaly available data on headquarter address and the `CityFiled`, the distances between these cities were found and imputed into the data accordingly. See Appendix for more information.   
+ 
 
 ```{r prelim-headquart}
 na_distance <- bankruptcy %>%
   filter(is.na(HeadCourtCityToDE))
 
 na_distance%>%
-  select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)
+  select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
 ```
 
 ```{r}
@@ -153,41 +139,21 @@ summary(bankruptcy$HeadCourtCityToDE)
 
 bankruptcy%>%
   filter(HeadCourtCityToDE==1)%>%
-  select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)
+  select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
 ```
 
-```{r prelim-headquarthisto}
-bankruptcy%>%
-  ggplot(aes(x=HeadCourtCityToDE))+
-  geom_histogram(fill="blue",alpha=0.7)+
-  theme_minimal()+
-  ggtitle("HeadCourtCityToDE")+
-  ylab("Count")
-```
-Exploring the summary statistics, it was observed that the minimum distance is 1 , when inspected the state of headquarter and the city filed its in the same state therefore it does not pose a data credibility issue. From the \@ref(fig:headquarthisto), we can observe that there are no severe outliers present. 
 
-- **Sales and Employees**
+Exploring the summary statistics, it was observed that the minimum distance is 1 , when inspected the state of headquarters and the city filed is in the same state therefore it does not pose a data credibility issue. 
 
+With regards to the `Employees` variable, it was observed that there is a single observation that is missing data on its employees. Under closer examination of the `Sales` Variable, we observed that it was the same firm that had missing data on `Sales` as well. On closer inspection of this firm, the presence of missing values on the variable `Ebit` was also found, therefore we remove this observation considering the fact that this single observation has missing values of these three variables.
 
-    
-With regards to the `Employees` variable, it was observed that there is a single observation that is missing data on its employees. Under closer examination of the `Sales` Variable, we observed that the only firm that was missing data on its `Sales` was same firm that has missing values in Employees Variable. On closer inspection of this firm, we have found that the firm has missing values on the variable `Ebit` as well, therefore considering the fact that there is only a single observation that is missing in `Employees` and `Sales`, along with the fact that these observations are the same and the observation also contains missing values for `Ebit`, we are removing the observation from the data for further analysis. 
+ 
+   
 ```{r}
-
 na_sales <- filter(bankruptcy, is.na(Sales))
-na_sales%>%
-  select(Name,Sales)
-```
-
-```{r}
 na_employees <- filter(bankruptcy, is.na(Employees))
-
-na_employees%>%
-  select(Name,Employees)
-
-```
-    
-```{r}
-
 options(scipen = 999)
 bankruptcy%>%
   filter(Name=="County Seat, Inc.")%>%
@@ -200,28 +166,26 @@ bankruptcy<- bankruptcy%>%
 ```
 
 
-**Ebit and Liab**
-
-
-The missing values in `Liab` and `Ebit` was treated by dropping the missing observations, as the missing values in each of the variables were below 10% and out of the 39 rows where either one of the two variables were missing, 8 of the observations have missing values on both `Liab` and `Ebit`.
+The missing values in `Liab` and `Ebit` was treated by dropping the missing observations, as the missing values in each of the variables were below 10% and out of the 39 rows where either one of the two variables were missing, 8 of the observations have missing values on both `Liab` and `Ebit`. We believe it is more reasonable to drop the missing values than impute them as imputation could mislead the analysis.  
 
 ```{r}
+
 all_liab_ebit_missing<- bankruptcy %>%
   filter(is.na(Ebit) |is.na(Liab))
 
 bank_data_op1 <- bankruptcy %>%
   filter(!is.na(Ebit) & !is.na(Liab))
 data_label <- bank_data_op1%>%
-  filter(Ebit==max(Ebit)|Liab==max(Liab)|Sales==max(Sales))%>%
-  select(Name,Ebit,Liab,Sales)
+  filter(Ebit==max(Ebit)|Liab==max(Liab)|Sales==max(Sales)|Assets==max(Assets))%>%
+  select(Name,Ebit,Liab,Sales,Assets)
 
 
 ```
 
 
-It was also noticed that variables such as that `DENYOther`, `MonthFiled` and `YearFiled` ought to be factor as mentioned in the data description are depicted as numeric. These variables are then converted to factor variables as shown in figure \@ref(fig:cleandata)
+`DENYOther`, `MonthFiled` and `YearFiled` ought to be factor as mentioned in the data description therefore are converted to factor from numeric variables as shown in figure \@ref(fig:cleandata)
 
-```{r cleandata}
+```{r cleandata, fig.cap="Overview of Cleaned Data"}
 
 data_clean <- bank_data_op1 %>%
   mutate(DENYOther = as.factor(DENYOther),
@@ -229,43 +193,136 @@ data_clean <- bank_data_op1 %>%
          YearFiled = as.factor(YearFiled))
 row.names(data_clean) <- data_clean$Name
 vis_dat(data_clean)
+
 ```
 
-The data was then checked for outliers, even though we havent found suspicious outliers in majority of the variables, we have however found outliers in `Ebit`, `Liab` and `Sales`. Interestingly, these values belong to a single firm called **Texaco Inc.** This will be discussed further in the sections below.
+The data was then checked for outliers, even though we haven't found suspicious outliers in majority of the variables (see Appendix for more information), outliers were found in `Ebit`, `Liab` , `Assets` and `Sales` as shown below in figure \@ref(fig:prelimoutlier-1) and \@ref(fig:prelimoutlier-2). Interestingly, these values belong to a single firm called **Texaco Inc.** This will be discussed further in the sections below.
 
 
-```{r}
+```{r prelimoutlier-1, fig.cap="Presence of Outliers in Sales and Assests"}
 p3 <- data_clean%>%
   ggplot()+
   geom_histogram(aes(x=Sales),fill="blue",alpha=0.7)+
-    geom_text(data=data_label,aes(x=Sales,y=20,label=Name))+
-  theme_minimal()+
+    geom_text(data=data_label,aes(x=Sales,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
   ggtitle("Sales")+
   ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 p1<- data_clean%>%
   ggplot()+
   geom_histogram(aes(x=Ebit),fill="blue",alpha=0.7)+
-  geom_text(data=data_label,aes(x=Ebit,y=20,label=Name))+
-  theme_minimal()+
+  geom_text(data=data_label,aes(x=Ebit,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
   ggtitle("Ebit")+
   ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 p2 <- data_clean%>%
   ggplot()+
   geom_histogram(aes(x=Liab),fill="blue",alpha=0.7)+
-  geom_text(data=data_label,aes(x=Liab,y=20,label=Name))+
-  theme_minimal()+
+  geom_text(data=data_label,aes(x=Liab,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
   ggtitle("Liab")+
   ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
+p4 <- data_clean%>%
+  ggplot()+
+  geom_histogram(aes(x=Assets),fill="blue",alpha=0.7)+
+  geom_text(data=data_label,aes(x=Assets,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
+  ggtitle("Assets")+
+  ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+p3+p4
+
 ```
+
+
+```{r prelimoutlier-2,fig.cap="Presence of Outliers in Ebit and Liab"}
+p1+p2
+
+```
+
+
+
+In order to gain insights from the data, we have further explored it.Below shown is a correlation plot. It is clear from the plot that `HeadCityPop`and `HeadCourtCityToDE` have no correlation with any of the other variables. Therefore, we omit these two variables from further analysis. 
 
 
 
 ```{r}
-p1+p2+p3
+A = cor(data_clean%>%select_if(is.numeric))
+corrplot::corrplot(A, method = 'number')
+
+data_clean<- data_clean%>%
+  select(-HeadCityPop,-HeadCourtCityToDE)
 
 ```
 
-In order to gain insights from the data, we have further explored the data 
+
+
+
+
+## Appendix 
+
+#### Data Cleaning 
+
+- Imputation of variable `HeadCourtCityToDE`
+
+As per our research online, we came to the conclusion that the `HeadCourtCityToDE` for [Divi Hotels, N.V.](https://www.bloomberg.com/profile/company/DVH:US) is 1126 miles where as for [Loewen Group, Inc](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001601) (British Columbia to Wilmington)  and [Philip Services Corp.](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001613) (Ontario to Wilmington) is 2942 and 1234 miles respectively.
+
+- Imputation of variable `DaysIn`
+
+
+  - `DaysIn` can be encoded equivalent to 121 days for [AP Industries, Inc.](https://casetext.com/case/in-re-ap-industries-inc?__cf_chl_jschl_tk__=pmd_0e9LcvX3fGC0nT5WJVBShbHDvK9GY2AMZnekCjslbN0-1631333530-0-gqNtZGzNAjujcnBszQd9) 
+
+  - `DaysIn` can be encoded equivalent to 1944 days for [Daisy Systems Corp.](https://caselaw.findlaw.com/us-9th-circuit/1020075.html)  
+
+
+- Dealing Missing Values in `Sales` and `Employees` 
+
+```{r}
+
+
+na_sales%>%
+  select(Name,Sales)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+```
+
+```{r}
+
+
+na_employees%>%
+  select(Name,Employees)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+
+```
+   
+   
+- Checking Outliers
+
+```{r}
+out1 <- bankruptcy%>%
+  ggplot(aes(x=DaysIn))+
+  geom_histogram(fill="blue",alpha=0.7)+
+  theme_bw()+
+  ggtitle("DaysIn")+
+  ylab("Count")
+
+```
+
+```{r prelim-headquarthisto, fig.cap="The figure indicates that there isnt any outliers in the variables DaysIn and HeadCourtCitytoDE"}
+out2<- bankruptcy%>%
+  ggplot(aes(x=HeadCourtCityToDE))+
+  geom_histogram(fill="blue",alpha=0.7)+
+  theme_bw()+
+  ggtitle("HeadCourtCityToDE")+
+  ylab("Count")
+
+out1+out2
+```
