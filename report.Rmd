@@ -191,17 +191,17 @@ data_op1 <- data %>%
 vis_dat(data_op1)
 ```
 
-2. Impute with its median grouped by SIC 
+#2. Impute with its median grouped by SIC 
 
-```{r}
-data_op2 <- data %>% group_by(SIC) %>%
-  mutate(Ebit = ifelse(is.na(Ebit), median(Ebit,na.rm=TRUE), Ebit))
+#```{r}
+#data_op2 <- data %>% group_by(SIC) %>%
+#  mutate(Ebit = ifelse(is.na(Ebit), median(Ebit,na.rm=TRUE), Ebit))
 
-data_op2 <- data_op2 %>% group_by(SIC) %>%
-  mutate(Liab = ifelse(is.na(Liab), median(Liab,na.rm=TRUE), Liab))
+#data_op2 <- data_op2 %>% group_by(SIC) %>%
+#  mutate(Liab = ifelse(is.na(Liab), median(Liab,na.rm=TRUE), Liab))
 
-vis_dat(data_op2)
-```
+#vis_dat(data_op2)
+#```
 
 # Clean Data
 
@@ -213,7 +213,9 @@ data_clean <- data_op1 %>%
   mutate(DENYOther = as.factor(DENYOther),
          MonthFiled = as.factor(MonthFiled),
          YearFiled = as.factor(YearFiled))
+
 row.names(data_clean) <- data_clean$Name
+
 ggplot(data_clean, aes(x = Ebit)) +
   geom_histogram()
 ```
@@ -252,7 +254,7 @@ Clustering is the process of grouping the observations into categories or groups
 
 In this case, we can validate if there are any similarities among the companies that are going bankrupt. This helps us understand the most possible reason for organisations going bankrupt and possibly help prevent the same in the future.
 
-There are two main types of clustering namely, hierarchical and non-hierarchical clustering. Non hierarchical clustering with the number of clusters known ex ante are useful if the number of clusters can be determined beforehand.
+There are two main types of clustering namely, hierarchical and non-hierarchical clustering. Non hierarchical clustering with the number of clusters known ex ante are useful if the number of clusters can be determined beforehand. We will mainly focus on Hierarchical clustering method.
 
 ### Hierarchical Clustering:
 
@@ -266,65 +268,20 @@ clust_data <- data_clean %>%
   select_if(is.numeric) %>%
   scale %>% dist() %>% hclust(method = "ward.D2")
 
-  
-
 clust_data %>% plot(cex=.5)
 clust_data %>% rect.hclust(k=3)
 ```
 
+The tolerance values for different number of clusters is as follows:
 
-- Trying diff values of k to get the best k
+- Trying diff values of k to get the best cluster value
   + when k = 2 value is around 34
   + when k = 3 value is around 29
   + when k = 4 value is around 23
   + when k = 6 value is around 21
   + when k = 7 value is around 18
-
-```{r}
-data_clean %>% ungroup() %>% select_if(is.numeric) %>%
-  scale %>% dist() %>% hclust(method = "ward.D2") -> DataClusterW
-
-DataClusterW %>% plot(cex=.5)
-DataClusterW %>% rect.hclust(k=10)
-```
-
-
-### Non-hierarchical Clustering: (Dont consider this)
-
-```{r}
-kmeans_data <- data_clean %>% 
-  dplyr::select(Assets, CPI, Employees, DaysIn, 
-                Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)
-
-DataClusterK <- kmeans(kmeans_data, 10, nstart = 5)
-
-# kmean_withinss <- function(k) {
-#     cluster <- kmeans(DataClusterK, k)
-#     return (cluster$tot.withinss)
-# }
-# 
-# max_k <-20 
-# # Run algorithm over a range of k 
-# wss <- sapply(6:max_k, kmean_withinss)
-# 
-# elbow <-data.frame(2:max_k, wss)
-# 
-# ggplot(elbow, aes(x = X2.max_k, 
-#                   y = wss)) +
-#     geom_point() +
-#     geom_line() +
-#     scale_x_continuous(breaks = seq(1, 20, by = 1))
-
-cl6 <- cutree(DataClusterW, 6)
-cl10 <- cutree(DataClusterW, 10)
-table(cl6,cl10)
-
-km6 <- kmeans((data_clean %>% ungroup() %>% select_if(is.numeric)), 6)
-kmcl6 <- km6$cluster
-km10 <- kmeans((data_clean %>% ungroup() %>% select_if(is.numeric)), 10)
-kmcl10 <- km10$cluster
-table(kmcl6, kmcl10)
-```
+  
+We can observe that there is a big range of Height tolerance on y-axis for k = 3 with the next values at 34 and and 23 for k = 2 and k = 4 respectively. Thus, we cluster the data into three clusters.  
 
 ### Choosing the best method:
 
@@ -343,7 +300,7 @@ adjustedRandIndex(memb_ten_w, memb_ten_cm)
 adjustedRandIndex(memb_ten_w, memb_ten_cl)
 ```
 
-The complete linkage method has the highest agreement between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt.
+The complete linkage method has the highest agreement between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt. The closest method to Ward D2 is Complete Linkage method which is 44% similar to the Ward D2 method.
 
 #```{r}
 #data_clean2 <- data_op2 %>%
