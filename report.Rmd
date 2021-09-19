@@ -2,7 +2,7 @@
 title: "High Dimensional Data Analysis - Group Assignment"
 author: "Group 18"
 date: "08/09/2021"
-output: bookdown::pdf_document2
+output: html_document
 ---
 
 ```{r setup, include=FALSE, message = FALSE, warning = FALSE}
@@ -285,7 +285,7 @@ The tolerance values for different number of clusters is as follows:
   + when k = 6 value is around 21
   + when k = 7 value is around 18
   
-We can observe that there is a big range of Height tolerance on y-axis for k = 3 with the next values at 34 and and 23 for k = 2 and k = 4 respectively. Thus, we cluster the data into three clusters.  
+We can observe that there is a big range of Height tolerance on y-axis for k = 3 with the next values at 34 and and 23 for k = 2 and k = 4 respectively. Thus, we cluster the data into three clusters as it has the highest range which keeps our clustering stable.  
 
 ### Choosing the best method:
 
@@ -303,7 +303,7 @@ adjustedRandIndex(memb_ten_w, memb_ten_al)
 adjustedRandIndex(memb_ten_w, memb_ten_cm)
 adjustedRandIndex(memb_ten_w, memb_ten_cl)
 ```
-
+ `adjustedRandIndex(memb_ten_w, memb_ten_al)`
 The complete linkage method has the highest agreement with Ward D2 between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt. The closest method to Ward D2 is Complete Linkage method which is 44% similar to the Ward D2 method.
 
 #```{r}
