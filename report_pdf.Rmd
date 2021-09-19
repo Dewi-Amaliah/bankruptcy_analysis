@@ -1,0 +1,687 @@
+---
+title: "Assignment 2 Report"
+author: Aarathy Babu, Dewi Amaliah, Priya Dingorkar, Rahul Bharadwaj
+output: 
+  bookdown::pdf_document2:
+    toc: FALSE
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(dplyr)
+library(visdat)
+library(splitstackshape)
+library(lubridate)
+library(patchwork)
+library(MASS)
+library(kableExtra)
+library(FactoMineR)
+library(factoextra)
+library(patchwork)
+library(ggrepel)
+library(ggfortify)
+
+bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
+```
+
+# Introduction
+
+The UCLA-LoPucki Bankruptcy Research Database (BRD) is a UCLA School of Law data gathering, data linking, and data distribution initiative. The goal of the BRD is to encourage bankruptcy research by making bankruptcy data available to academic investigators worldwide. All of the data was gathered when the companies declared bankruptcy. In this study, we will use a variety of high-dimensional analysis approaches like Multidimensional Scaling, Principle Component Analysis and Clustering to extract useful insights from the data.
+
+```{r, out.width=450, eval = FALSE}
+knitr::include_graphics("data/bank.jpg")
+#link of the image - https://www.businessrescueexpert.co.uk/wp-content/uploads/2018/07/Assets-in-Bankruptcy.jpg
+```
+
+
+# Acknowledgment
+
+Our sincere gratitude goes out to Ruben Loaiza-Maya and the our tutor Ari Handayani for their guidance and support. Their culminating efforts have placed us in a situation where we can produce this report collectively while showcasing our competence to employ diverse solutions that can be used with high dimensional data.
+
+
+# Data Description
+
+This report is based on data from US businesses that declared bankruptcy between 1980 and 2000. The information is coming from the UCLA-LoPucki Brankruptcy Research Database. Let's take a closer look at these variables and what they mean. Let's go further into the dataset to see if we can find any examples of data cleaning or wrangling.
+
+
+The dataset has 436 observations and 7 variables with their description explained below.
+
+- Name: Name of the firm
+- Assets: Total assets (in millions of dollars)
+- CityFiled: City where filing took place
+- CPI U.S CPI at the time of filing
+- DaysIn: Length of bankruptcy process
+- DENYOther: CityFiled, categorized as Wilmington (DE), New York (NY) or all other cities (OT)
+- Ebit: Earnings (operating income) at time of filing (in millions of dollars)
+- Employees: Number of employees before bankruptcy
+- EmplUnion: Number of union employees before bankruptcy
+- FilingRate: Total number of other bankrupcy filings in the year of this filing
+- FirmEnd: Short description of the event that ended the firm’s existence
+- GDP: Gross Domestic Product for the Quarter in which the case was filed
+- HeadCityPop: The population of the firms headquarters city
+- HeadCourtCityToDE: The distance in miles from the firms headquarters city to the city in which
+the case was filed
+- HeadStAtFiling: The state in which firms headquarters is located
+- Liab: Total amount of money owed (in millions of dollars)
+- MonthFiled: Categorical variable where numbers from 1 to 12 correspond to months from Jan to Dec
+- PrimeFiling: Prime rate of interest on the bankruptcy filing date
+- Sales: Sales before bankruptcy (in dollars)
+- SICMajGroup: Standard industrial clasification code
+- YearFiled: Year bankruptcy was filed
+
+Let us further examine the bankruptcy statistics. We will undertake some preliminary data analysis. We will also go through the numerous approaches used for this high-dimensional data in detail later.
+
+
+# Preliminary Data Analysis
+
+
+Before carrying out further analysis of the data, let us conduct some preliminary data analysis. From the summary shown below, we can see that the data is a high dimensional dataset with 21 variables, out of which 6 are character variables and 15 are numeric variables.
+
+
+```{r prelim-skimr}
+glimpse(bankruptcy)
+```
+
+It can be observed that there are quite a number of empty values present in `FirmEnd` which are essentially `NULL` values. Therefore, we have converted these into`NA` values. 
+
+```{r prelim-firmend}
+bankruptcy <- bankruptcy %>%
+  mutate(FirmEnd = ifelse(FirmEnd == "", 
+                          NA, 
+                          FirmEnd))
+```
+
+The data credibility issues are checked by confirming if the `DaysIn`, `EmplUnion`, `Employees`, `HeadCourtCityToDE`,`MonthFiled`, `YearFiled` and `HeadCityPop` are non-negative values. It was found that there are observations where the `EmplUnion` values are more than `Employees` which was removed from the data and that certain companies have 1 Employee and 1 EmplUnion values as shown below, which is suspicious but since there is not any concrete evidence that these observations pose data credibility issues, these observations were not excluded for the analysis. 
+
+```{r}
+bankruptcy%>%
+  filter(EmplUnion>=Employees)%>%
+  dplyr::select(Name,Employees,EmplUnion)
+bankruptcy <-  bankruptcy %>%
+filter(Name != "Promus Companies Inc. (Harrahs Jazz Co. only)")
+```
+
+
+We have seperated `SICMajGroup` into a new factor variable `SIC` and its meaning in the `SICMajGroup` so as to make it more identifiable without the lengthy name.
+
+```{r prelim-sic}
+bankruptcy <- bankruptcy %>%
+  separate(SICMajGroup, 
+           into = c("SIC", "SICMajGroup"), 
+           sep = "\\s", 
+           extra = "merge") %>%
+  mutate(SIC = as.factor(SIC))
+```
+
+The missing values in the data has been visualized as shown in \@ref(fig:prelim-vismiss). Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
+
+It can be observed that `FirmEnd` has the highest number of missing values, followed by `EmplUnion`. The strategy employed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts the description of the end of Firm's existance , it doesn't provide significant value to the analysis and it can be excluded. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related and `EmplUnion` is be a subset of `Employees`, therefore removing `EmplUnion` which has too many missing values would not affect our analysis significantly as the variable Employees explains similar aspect. 
+
+```{r prelim-vismiss, fig.cap="Overview of missing values in the data"}
+vis_dat(bankruptcy)+
+  ggtitle("Overview of data with missing values")
+bankruptcy<- bankruptcy%>%
+  dplyr::select(-FirmEnd,-EmplUnion)
+```
+
+The missing values of `DaysIn` in 4 companies were encoded based on the publicly available data and imputation. Values were encoded for **AP Industries** and **Daisy Systems Corp.** (See Appendix for more information). However, the data for **Hunt International Resources Corp.** and **McCrory Corp.** was not available, therefore we have imputed the variable, based on median of the `DaysIn` in the industry classification they belong to.
+
+```{r prelim-daysin}
+na_daysin <- filter(bankruptcy, is.na(DaysIn))
+na_daysin%>%
+  dplyr::select(c(Name,DaysIn))%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+```
+
+```{r}
+median_daysin<- bankruptcy %>% group_by(SIC) %>%
+  summarise(median = median(DaysIn, na.rm = TRUE)) %>% 
+    dplyr::filter(SIC %in% c(20, 53))
+```
+
+
+```{r prelim-daysinimpute}
+bankruptcy <- bankruptcy %>%
+  mutate(DaysIn = ifelse(Name == "Hunt International Resources Corp.", 305,
+                                    ifelse(Name == "AP Industries, Inc.", 121,
+                                           ifelse(Name == "Daisy Systems Corp.", 1944,
+                                                  ifelse(Name == "McCrory Corp.", 683, DaysIn)))))
+summary(bankruptcy$DaysIn)
+```
+
+The summary statistics of the variable after imputation, suggests no suspicious outliers or anomalies as the bankruptcy can be a lengthy ordeal. 
+
+
+The missing values in `HeadCourtCityToDE` shown in the table below, are imputed using the values in `CityFiled`, `DENYOther`, and `HeadStAtFiling`. Considering the publicaly available data on headquarter address and the `CityFiled`, the distances between these cities were found and imputed into the data accordingly. See Appendix for more information.   
+ 
+
+```{r prelim-headquart}
+na_distance <- bankruptcy %>%
+  filter(is.na(HeadCourtCityToDE))
+na_distance%>%
+  dplyr::select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+```
+
+```{r}
+bankruptcy <- bankruptcy %>%
+  mutate(HeadCourtCityToDE = ifelse(Name == "Divi Hotels, N.V.", 1126,
+                                    ifelse(Name == "Loewen Group, Inc.", 2942,
+                                           ifelse(Name == "Philip Services Corp. (1999)", 1234,
+                                                  HeadCourtCityToDE))))
+summary(bankruptcy$HeadCourtCityToDE)
+bankruptcy%>%
+  filter(HeadCourtCityToDE==1)%>%
+  dplyr::select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+```
+
+
+Exploring the summary statistics, it was observed that the minimum distance is 1 , when inspected the state of headquarters and the city filed is in the same state therefore it does not pose a data credibility issue. 
+
+With regards to the `Employees` variable, it was observed that there is a single observation that is missing data on its employees. Under closer examination of the `Sales` Variable, we observed that it was the same firm that had missing data on `Sales` as well. On closer inspection of this firm, the presence of missing values on the variable `Ebit` was also found, therefore we remove this observation considering the fact that this single observation has missing values of these three variables.
+
+ 
+   
+```{r}
+na_sales <- filter(bankruptcy, is.na(Sales))
+na_employees <- filter(bankruptcy, is.na(Employees))
+options(scipen = 999)
+bankruptcy%>%
+  filter(Name=="County Seat, Inc.")%>%
+  dplyr::select(Name,Sales,Employees,Ebit)
+bankruptcy<- bankruptcy%>%
+  filter(!is.na(Sales))
+```
+
+
+The missing values in `Liab` and `Ebit` was treated by dropping the missing observations, as the missing values in each of the variables were below 10% and out of the 39 rows where either one of the two variables were missing, 8 of the observations have missing values on both `Liab` and `Ebit`. We believe it is more reasonable to drop the missing values than impute them as imputation could mislead the analysis.  
+
+```{r}
+all_liab_ebit_missing<- bankruptcy %>%
+  filter(is.na(Ebit) |is.na(Liab))
+bank_data_op1 <- bankruptcy %>%
+  filter(!is.na(Ebit) & !is.na(Liab))
+data_label <- bank_data_op1%>%
+  filter(Ebit==max(Ebit)|Liab==max(Liab)|Sales==max(Sales)|Assets==max(Assets))%>%
+  dplyr::select(Name,Ebit,Liab,Sales,Assets)
+```
+
+
+`DENYOther`, `MonthFiled` and `YearFiled` ought to be factor as mentioned in the data description therefore are converted to factor from numeric variables as shown in figure \@ref(fig:cleandata)
+
+```{r cleandata, fig.cap="Overview of Cleaned Data"}
+data_clean <- bank_data_op1 %>%
+  mutate(DENYOther = as.factor(DENYOther),
+         MonthFiled = as.factor(MonthFiled),
+         YearFiled = as.factor(YearFiled))
+row.names(data_clean) <- data_clean$Name
+vis_dat(data_clean)
+```
+
+The data was then checked for outliers, even though we haven't found suspicious outliers in majority of the variables (see Appendix for more information), outliers were found in `Ebit`, `Liab` , `Assets` and `Sales` as shown below in figure \@ref(fig:prelimoutlier-1) and \@ref(fig:prelimoutlier-2). Interestingly, these values belong to a single firm called **Texaco Inc.** This will be discussed further in the sections below.
+
+
+```{r prelimoutlier-1, fig.cap="Presence of Outliers in Sales and Assests"}
+p3 <- data_clean%>%
+  ggplot()+
+  geom_histogram(aes(x=Sales),fill="blue",alpha=0.7)+
+    geom_text(data=data_label,aes(x=Sales,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
+  ggtitle("Sales")+
+  ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p1<- data_clean%>%
+  ggplot()+
+  geom_histogram(aes(x=Ebit),fill="blue",alpha=0.7)+
+  geom_text(data=data_label,aes(x=Ebit,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
+  ggtitle("Ebit")+
+  ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p2 <- data_clean%>%
+  ggplot()+
+  geom_histogram(aes(x=Liab),fill="blue",alpha=0.7)+
+  geom_text(data=data_label,aes(x=Liab,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
+  ggtitle("Liab")+
+  ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p4 <- data_clean%>%
+  ggplot()+
+  geom_histogram(aes(x=Assets),fill="blue",alpha=0.7)+
+  geom_text(data=data_label,aes(x=Assets,y=50,label=Name),
+    hjust = 0.7, size = 4)+
+  theme_bw()+
+  ggtitle("Assets")+
+  ylab("Count")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p3+p4
+```
+
+
+```{r prelimoutlier-2,fig.cap="Presence of Outliers in Ebit and Liab"}
+p1+p2
+```
+
+
+
+In order to gain insights from the data, we have further explored it.Below shown is a correlation plot. It is clear from the plot that `HeadCityPop`and `HeadCourtCityToDE` have no correlation with any of the other variables. Therefore, we omit these two variables from further analysis. 
+
+
+
+```{r}
+A = cor(data_clean%>%select_if(is.numeric))
+corrplot::corrplot(A, method = 'number')
+data_clean<- data_clean%>%
+  dplyr::select(-HeadCityPop,-HeadCourtCityToDE)
+```
+
+# Multidimensional Scaling (MDS)
+
+MDS is a statistical method to represent multidimensional data into lower-dimensional (2D) data. The `bankruptcy` data has 21 variables which can be considered as data with high dimensions. Thus, MDS is relevant to represent this data in two-dimensional visualisation. This method uses distance to do the job. Hence, we limit the MDS only to incorporate numerical variables so that we can use Euclidean distance or is known as classical MDS. We will also only incorporate numerical variables directly related to bankruptcy. Those variables are: `Assest`, `DaysIn`, `Employees`, `CPI`, `Ebit`, `Liab`, `FillingRate`, `GDP`, `PrimeFilling`, and `Sales`. These variables has different unit of measurements, hence we standardise it.
+
+## Classical MDS
+
+```{r}
+dd <- data_clean %>% 
+  dplyr::select(c(Assets, DaysIn, Employees, CPI, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)) %>%
+  #select_if(is.numeric) %>%
+  scale %>% dist()
+
+#rownames(clean_data) -> attributes(dd)$Labels
+
+
+cmds <- cmdscale(dd,eig = T)
+
+df <- cmds$points %>%
+  as.data.frame()
+
+df_join <- cbind(df, data_clean) %>%
+  mutate(Names = abbreviate(Name)) 
+```
+
+
+```{r cmds-plot, fig.cap="Classical MDS solution for bankruptcy data. The x and y-axis represent the new variables as the result of MDS. Some outliers observed in thedata"}
+ggplot(df_join,
+             aes(x=V1,
+                 y=V2,
+                 label= Names)) + 
+  geom_text(size=2) +
+  theme_bw()
+```
+
+Figure \@ref(fig:cmds-plot) conveys that Texaco Inc (Tin.), Baldwin-United Corporation (B-UC), Federated Department Stores, Inc. (FDSI), LTV Corp. (1986) (LTCV.(1) are potential outliers. On closer inspection of the data, we find that these firms have the largest assets. Moreover, Texaco Inc. also has high operating income, sales, and liability.  
+
+As mentioned previously, the aim of MDS is to visualise the firms in 2D scatter plot. However, this objective will be less clearly achieved in Figure \@ref(fig:cmds-plot) since too many observations overlapped each other. Hence, we decide to exclude Texaco Inc. and re-conduct classical MDS. This gives us a clearer visualisation as follows:
+
+
+```{r}
+exclude_texaco <- data_clean %>%
+  filter(Name != "Texaco Inc.")
+
+dd_excl <- exclude_texaco %>% 
+  dplyr::select(c(Assets, DaysIn, Employees, CPI, Ebit, Liab, FilingRate, GDP, PrimeFiling, Sales)) %>%
+  #select_if(is.numeric) %>%
+  scale %>% dist()
+
+#rownames(clean_data) -> attributes(dd)$Labels
+
+
+cmds_excl <- cmdscale(dd_excl,eig = T)
+
+df_excl <- cmds_excl$points %>%
+  as.data.frame()
+
+df_join_excl <- cbind(df_excl, exclude_texaco) %>%
+  mutate(Names = abbreviate(Name)) %>%
+  mutate(SIC_collaps = fct_collapse(SICMajGroup, `Crops` = "Crops",
+                                    `Mining, Oil & Gas Extraction` = c("Metal Mining", "Coal Mining",
+                                                                       "Oil And Gas Extraction"),
+                                    `Construction` = c("Building Construction General Contractors And Operative Builders",
+                                                       "Heavy Construction Other Than Building Construction Contractors",
+                                                       "Construction Special Trade Contractors"),
+                                    `Manufacture` = c("Food and Kindred Products",
+                                                      "Textile Mill Products",
+                                                      "Apparel And Other Finished Products Made From Fabrics And Similar Materi",
+                                                      "Lumber And Wood Products, Except Furniture",
+                                                      "Furniture And Fixtures",
+                                                      "Paper and Allied Products",
+                                                      "Printing, Publishing, And Allied Industries",
+                                                      "Chemicals and Allied Products",
+                                                      "Petroleum Refining And Related Industries",
+                                                      "Rubber and Miscellaneous Plastics Products",
+                                                      "Stone, Clay, Glass, And Concrete Products",
+                                                      "Primary Metal Industries",
+                                                      "Fabricated Metal Products, Except Machinery and Transportation Equipment",
+                                                      "Industrial and Commercial Machinery and Computer Equipment",
+                                                      "Electronic And Other Electrical Equipment And Components",
+                                                      "Transportation Equipment",
+                                                      "Measuring, Analyzing and Controlling Instruments; Photographic, Medical",
+                                                      "Miscellaneous Manufacturing Industries"),
+                                    `Transportation & Warehouse` = c("Local And Suburban Transit And Interurban Highway Passenger Transportati",
+                                                                     "Motor Freight Transportation And Warehousing",
+                                                                     "Water Transportation",
+                                                                     "Transportation By Air"),
+                                    `Communications` = "Communications",
+                                    `Services` = c("Electric, Gas, And Sanitary Services",
+                                                   "Personal Services",
+                                                   "Business Services",
+                                                   "Automotive Repair, Services, and Parking",
+                                                   "Miscellaneous Repair Services",
+                                                   "Motion Pictures",
+                                                   "Amusement And Recreation Services",
+                                                   "Health Services",
+                                                   "Social Services",
+                                                   "Engineering, Accounting, Research, Management, and Related Services"),
+                                    `Wholesale & Retail` = c("Wholesale Trade-durable Goods",
+                                                             "Wholesale Trade-non-durable Goods",
+                                                             "Building Materials, Hardware, Garden Supply, And Mobile Home Dealers",
+                                                             "General Merchandise Stores",
+                                                             "Food Stores",
+                                                             "Apparel And Accessory Stores",
+                                                             "Home Furniture, Furnishings, and Equipment Stores",
+                                                             "Eating and Drinking Places",
+                                                             "Miscellaneous Retail"),
+                                    `Finance` = c("Depository Institutions",
+                                                  "Non-depository Credit Institutions",
+                                                  "Insurance Carriers"),
+                                    `Real Estate` = c("Real Estate",
+                                                      "Holding And Other Investment Offices",
+                                                      "Hotels, Rooming Houses, Camps, and Other Lodging Places")))
+```
+
+
+```{r cmds-plot-excl, fig.cap="Classical MDS solution for bankruptcy data after excluding Texaco Inc. The x and y-axis represent the new variables as the result of MDS. We get a clearer visualisation compared to the previous MDS result"}
+ggplot(df_join_excl,
+             aes(x=V1,
+                 y=V2,
+                 label= Names)) + 
+  geom_text(size=2) +
+  theme_bw()
+```
+
+
+Figure \@ref(fig:cmds-plot-excl) suggests that the visual representation of the rest firms other than Texaco, Inc. remains the same. B-UC, LTCV.(1, and FDSI are still far apart from other firms. It implies that our MDS is pretty robust. However, since it gives a clearer visualisation, we will use the data without Texaco, Inc. in the rest of MDS analysis. It also implies that most firms that filed for bankruptcy have similar characteristics since they tend to be plotted near or even overlapped with each other. We can also see that some firms are spread out. It means that these firms have different profile. 
+
+## Goodness of Fit
+
+In this part, we inspect the MDS’s Goodness of Fit. If two GoF values are equal, which is the ideal condition if we use Eucledean distance, then we can conclude that the strain is minimised and the solution is optimal. Here is the GoFs of the MDS:
+
+```{r}
+str(cmds_excl$GOF)
+```
+
+We find that the $GoF_1$ and $GoF_2$ are equal. Hence, our MDS is optimal. We also find that all the eigenvalues are positive (see Appendix). 
+
+## Comparison with non-Classical MDS
+
+Next, we compare the classical MDS with non-classical MDS (Sammon mapping). The stress function could be used to indicate the accuracy of representation. The lower, the better the accuracy. 
+
+```{r}
+smds<-sammon(dd_excl)
+smds$stress
+```
+
+
+We find that the stress is relatively low (0.121), thus non-classical MDS also produce fairly accurate representation of the bankruptcy data. Moreover, the plot (see Appendix) also produce relatively similar result when compared with the classical MDS. Hence, we can conclude that the result is fairly robust with the change of methodology. 
+
+## Visualisation with Categorical Variable
+
+This section will show the MDS solution by also take the categorical variables into account. Too keep the report concise, we displaye some categorical features in the Appendix and only display interesting finding in this subsection. 
+
+```{r cmds-year, fig.cap = "Classical MDS solution plotted by year when the bankruptcy filed."}
+ggplot(df_join_excl,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = YearFiled)) + 
+  geom_text(size=3) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+The classical MDS solution plotted by year as shown in Figure \@ref(fig:cmds-year) shows that there is pattern regarding the year. Firms who filed for bankruptcy in the same year tend to be similar each other. This could be because in the same year, CPI, filing rate, and prime interest are pretty similar. This is an interesting finding since we could infer that macroeconomic ,i.e, market condition could profile firms who filed for bankruptcy. 
+
+
+# Principal Component Analysis (PCA)
+
+- Now that we've seen how to input this high-dimensional data into Multidimensional scaling (MDS) to obtain a low (typically 2) dimensional representation. Let us now perform a Principal Component Analysis (PCA), which is a dimensional-reduction method that is frequently used to reduce the dimensional of large data sets by transforming a large set of variables into a smaller one that still contains the majority of the information in the large set.
+
+- On performing a PCA on the clean dataset during the data investigation process we found that, just like MDS sees Texaco Inc. which comes under Petroleum SIC and Refining And Related Industries as the outlier we get similar results when we feed the complete dataset to carry out PCA.
+
+- Keeping in mind, the word limit we have constrained to show only the PCA using the data without any outliers. Note the complete analysis of PCA for the data can be found in the Appendix section at the end of this report.
+
+- Let's carry out PCA on our bankruptcy data. Lets investigate if our data is a good fit for PCA. Let's us further investigate how the variables in our data are correlated and how many PC's explain the variation of our data.
+
+- Before we apply this principle to our data, it is very important that we standardized our variables as this ensures that results are not sensitive to the units of measurement. Thus giving us more accurate analysis.
+
+## PCA without outlier
+
+```{r}
+nooutlier <- data_clean %>%
+    mutate(abb=abbreviate(Name))
+nooutlier <- nooutlier%>%
+  dplyr::filter(abb!="TIn.")
+nooutlier%>%
+  select_if(is.numeric)%>%
+  prcomp(scale. = TRUE)->pca_no_out
+summary(pca_no_out)
+```
+
+- Using the `summary` function we can infer the following:
+  + Proportion of variance explained by the first four PCs together is now 67.99%
+  + Proportion of variance explained by the first and second PC alone is 26.41% and 22.24% respectively
+  + Using kaisers rule, choose those PC's whose variance and standard deviation greater than 1, we will choose 5 PC's that explains the most variation in our data.
+
+- Let us now use the scree plot to find the total number of PC's that best explain our data.
+
+```{r screeplot, fig.cap="Screeplot"}
+screeplot(pca_no_out,type="lines") 
+```
+
+- Interestingly the scree plot and the kaiser's rule do not agree with each other. But since the scree plot is a more accurate measure in helping us confirm that most of the variations is captured by the first three principal components from our dataset.
+
+- As we can see from the summary of our PCA that our third PC explains approx 11% of variation in our data but we cannot visualize this with a biplot. Nevertheless we still plot the biplot for our first two PC's as they explain around 50.00% of variation in our data.
+
+
+```{r biplotout, fig.cap="PCA Biplot without Outliers"}
+rownames(pca_no_out$x)<-pull(nooutlier,abb)
+autoplot(pca_no_out,label = TRUE, label.size = 2.5,
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 4.5) +
+  labs(title = "Biplot on Bankruptcy without Outliers") +
+  theme_bw()
+```
+
+
+- Looking at the figure \@ref(fig:biplotout) we can infer the following:
+  + We can see the various spread of the different companies while filing for bankruptcy. We can see how these companies are been spread out in different direction showing different properties with the surrounding variables. For instance two companies that show similar characteristics are FDSI and LDVC and the ones that show very dissimilar characteristics to each other are FDSI and DESL. 
+  + The further away these vectors or variables are from a PC origin, the more influence they have on that PC. For instance taking a closer a look at the left quadrant, we infer that CPI has more influence, followed by GDP and FilingRate whereas EBit has the least influence among all the variables.
+  + We also know that variables at an angle of 90° indicates no correlation between them, In our data we can infer that Employees with GDP/CPI shows an angle of almost 90° thus showing no correlation between these variables.
+  + We also infer that variables with 180° angle indicates negative correlation. In our case we can say that PrimeFiling is negative correlated with GDP, CPI and FilingRate making an almost 180° angle.
+  + Similarly,variables with angle close to 0° indicates positive correlation. In our dataset we can see that CPI and GDP are highly positively correlated. Assest, Liab, Ebit and Sales are all also positively correlated as the angle between all them is nearly zero.
+
+
+```{r corrplot, fig.cap="PCA Correlation Plot"}
+var <- get_pca_var(pca_no_out)
+fviz_pca_var(pca_no_out, col.var = "black") +
+  labs(title = "Correlation Plot") +
+  theme_bw()
+```
+
+- We can also refer to figure \@ref(fig:corrplot) for more clear visuals of the angles between variables making it clearly for the audience to distinguish between the variables that are positively, negatively or not correlated at all.
+
+
+
+# Cluster Analysis
+
+# Limitations
+
+- We only use numerical data in the analysis due to the complexity of incorporating non-numeric data. However, we tried to also display that categorical variable when visualising the MDS result. 
+- One of the most important limitation in our PCA analysis is that, as seen in the screeplot at figure we inferred that our data was most explained by the the first three PCs. But due to the limitations of biplot we have visualized our data using the first and the second PCs only. This mean they might be certain patterns in the data and to visualize third PCs we will further need to work on the structure of the data.
+
+
+# Conclusions
+
+# Appendix
+
+## Data Cleaning 
+
+- Imputation of variable `HeadCourtCityToDE`
+
+As per our research online, we came to the conclusion that the `HeadCourtCityToDE` for [Divi Hotels, N.V.](https://www.bloomberg.com/profile/company/DVH:US) is 1126 miles where as for [Loewen Group, Inc](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001601) (British Columbia to Wilmington)  and [Philip Services Corp.](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001613) (Ontario to Wilmington) is 2942 and 1234 miles respectively.
+
+- Imputation of variable `DaysIn`
+
+
+  - `DaysIn` can be encoded equivalent to 121 days for [AP Industries, Inc.](https://casetext.com/case/in-re-ap-industries-inc?__cf_chl_jschl_tk__=pmd_0e9LcvX3fGC0nT5WJVBShbHDvK9GY2AMZnekCjslbN0-1631333530-0-gqNtZGzNAjujcnBszQd9) 
+
+  - `DaysIn` can be encoded equivalent to 1944 days for [Daisy Systems Corp.](https://caselaw.findlaw.com/us-9th-circuit/1020075.html)  
+
+
+- Dealing Missing Values in `Sales` and `Employees` 
+
+```{r}
+na_sales%>%
+  dplyr::select(Name,Sales)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+```
+
+```{r}
+na_employees%>%
+  dplyr::select(Name,Employees)%>%
+  kableExtra::kable()%>%
+  kableExtra::kable_paper()
+```
+   
+   
+- Checking Outliers
+
+```{r}
+out1 <- bankruptcy%>%
+  ggplot(aes(x=DaysIn))+
+  geom_histogram(fill="blue",alpha=0.7)+
+  theme_bw()+
+  ggtitle("DaysIn")+
+  ylab("Count")
+```
+
+```{r prelim-headquarthisto, fig.cap="The figure indicates that there isnt any outliers in the variables DaysIn and HeadCourtCitytoDE"}
+out2<- bankruptcy%>%
+  ggplot(aes(x=HeadCourtCityToDE))+
+  geom_histogram(fill="blue",alpha=0.7)+
+  theme_bw()+
+  ggtitle("HeadCourtCityToDE")+
+  ylab("Count")
+out1+out2
+```
+
+## MDS
+
+**Eigenvalues of classical MDS**
+
+```{r}
+min(cmds_excl$eig)
+```
+
+Since the values has e-12, it is reciprocal to 2 with 12 trailing zeros. Hence, even though it looks negative, it is very close, even indistinguishable from zero.  That is why the value of $GoF_1$ and $GoF_2$ are equal. 
+
+**MDS plot using Sammon mapping**
+
+```{r sammon-plot, fig.cap="MDS solution using Sammon mapping"}
+df_join_excl <-add_column(df_join_excl,Sammon1=smds$points[,1],
+                     Sammon2=smds$points[,2])
+
+ggplot(df_join_excl,aes(x=Sammon1,y=Sammon2, label=`Names`))+ geom_text(size=2) +
+  theme_bw()
+```
+
+**Additional plots of MDS based on the city where the bankruptcy filed**
+
+```{r cmds-city, fig.cap = "Classical MDS solution plotted by city where the bankruptcy filed."}
+ggplot(df_join_excl,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = DENYOther)) + 
+  geom_text(size=3) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  guides(color=guide_legend(title="City"))
+```
+
+Figure \@ref(fig:cmds-city) shows no specific pattern of bankruptcy regarding the city where it is filed. The firms who similar to each other (as seen in the overlapped text) could filed for bankruptcy in different city. Besides, firms who are potentially outliers (B-UC, LTCV.(1, and FDSI) are not filed their bankruptcy in Delaware. 
+
+**Additional plots of MDS based on industry**
+
+Figure \@ref(fig:cmds-industry) shows the classical MDS solution by industry classification. Note that in the original data, there are 55 industry. This number is too big to be plotted, hence we collapse some industry which has the similar sector, for example manufacture, mining, construction, and finance. 
+
+```{r cmds-industry, fig.cap = "Classical MDS solution plotted by industry."}
+ggplot(df_join_excl,
+             aes(x=V1,
+                 y=V2,
+                 label= Names,
+                 color = SIC_collaps)) + 
+  geom_text(size=3) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  guides(color=guide_legend(title="Industry")) +
+  scale_colour_manual(values = c("red", "#884EA0", "#3498DB", "#16A085", "#F1C40F",
+                                 "#2ECC71", "#EB984E", "pink", "magenta", "black"))
+```
+
+Figure \@ref(fig:cmds-industry) suggests that there is no clear specific pattern of the firm bankruptcy regarding the industry. Wholesale and retail firms is bit more spread out. Manufacture industry is also observed to be spread out everywhere and could be because this industry has many observations. Further, B-UC and SthmCrp. are observed to be relatively further apart from the other real estate firms since they have bigger assets.
+
+## PCA 
+
+- PCA performed on the complete data including outliers
+
+```{r}
+data_clean%>%
+  select_if(is.numeric)%>%
+  prcomp(scale. = TRUE)->pca
+```
+
+```{r}
+summary(pca)
+```
+
+
+
+- Using the `summary` function we can infer the following:
+  + Proportion of variance explained by the first four PCs together is 73.28%
+  + Proportion of variance explained by the first and second PC alone is 30.10% and 23.64% respectively
+  + Using kaisers rule, we choose those PC's whose variance and standard deviation is greater than 1, in our bankruptcy data we will choose 4 PC's.
+
+
+- Let us now plot use the scree plot to find the total number of PC's that best explain our data.
+
+```{r plotscree, fig.cap="Scree Plot"}
+screeplot(pca,type="lines")
+```
+
+
+- Using the scree plot we infer that our bankruptcy data is explained by the first three PC's. Also note this is different to kaisers rule.
+
+- Let us now plot a biplot, that will help us infer intersting features about our data. A PCA biplot shows both PC scores of samples (dots) and loadings of variables(vectors).
+
+```{r biplotbank, fig.cap="PCA Biplot"}
+data_clean <- data_clean %>%
+  mutate(abbreviation=abbreviate(Name))
+rownames(pca$x)<-pull(data_clean,abbreviation)
+autoplot(pca,label = TRUE, 
+         label.size = 3.6,
+         loadings = TRUE, 
+         loadings.colour = 'blue',
+         loadings.label = TRUE, 
+         loadings.label.size = 4.5) +
+  labs(title = "Biplot on Bankruptcy Dataset") +
+  theme_bw()
+```
+
