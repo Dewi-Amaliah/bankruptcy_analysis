@@ -276,6 +276,8 @@ clust_data %>% plot(cex=.5)
 clust_data %>% rect.hclust(k=3)
 ```
 
+Ward D2 method gives the best clustering outcome with reasonable sized clusters so we compare all other clusters with this method.
+
 The tolerance values for different number of clusters is as follows:
 
 - Trying diff values of k to get the best cluster value
@@ -298,12 +300,24 @@ data_clean %>% ungroup() %>% select_if(is.numeric) %>%
   scale %>% dist() %>% hclust(method = "centroid") %>% cutree(k = 10)-> memb_ten_cm
 data_clean %>% ungroup() %>% select_if(is.numeric) %>%
   scale %>% dist() %>% hclust(method = "complete") %>% cutree(k = 10)-> memb_ten_cl
+```
 
+Average Method:
+```{r}
 adjustedRandIndex(memb_ten_w, memb_ten_al)
+```
+
+Centroid Method:
+```{r}
 adjustedRandIndex(memb_ten_w, memb_ten_cm)
+```
+
+Complete Method:
+```{r}
 adjustedRandIndex(memb_ten_w, memb_ten_cl)
 ```
- `adjustedRandIndex(memb_ten_w, memb_ten_al)`
+
+
 The complete linkage method has the highest agreement with Ward D2 between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt. The closest method to Ward D2 is Complete Linkage method which is 44% similar to the Ward D2 method.
 
 #```{r}
