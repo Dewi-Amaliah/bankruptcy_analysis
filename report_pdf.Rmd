@@ -22,6 +22,7 @@ library(factoextra)
 library(patchwork)
 library(ggrepel)
 library(ggfortify)
+library(mclust)
 
 bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 ```
@@ -528,9 +529,74 @@ fviz_pca_var(pca_no_out, col.var = "black") +
 
 - We can also refer to figure \@ref(fig:corrplot) for more clear visuals of the angles between variables making it clearly for the audience to distinguish between the variables that are positively, negatively or not correlated at all.
 
-
-
 # Cluster Analysis
+
+
+Clustering is the process of grouping the observations into categories or groups of observations based on their similarities. It helps us identify the commonalities and similar characteristics within the data which help us answer business questions.
+
+In this case, we can validate if there are any similarities among the companies that are going bankrupt. This helps us understand the most possible reason for organisations going bankrupt and possibly help prevent the same in the future.
+
+There are two main types of clustering namely, hierarchical and non-hierarchical clustering. Non hierarchical clustering with the number of clusters known ex ante are useful if the number of clusters can be determined beforehand. We will mainly focus on Hierarchical clustering method.
+
+### Hierarchical Clustering:
+
+```{r}
+clust_data <- data_clean %>% 
+  ungroup %>% 
+  dplyr::filter(Name != "Texaco Inc.") %>% 
+  dplyr::select(c(Assets, CPI, DaysIn, Employees, 
+                  Ebit, Liab, FilingRate, GDP, 
+                  PrimeFiling, Sales)) %>%
+  select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "ward.D2")
+clust_data %>% plot(cex=.5)
+clust_data %>% rect.hclust(k=3)
+```
+
+Ward D2 method gives the best clustering outcome with reasonable sized clusters so we compare all other clusters with this method.
+
+The tolerance values for different number of clusters is as follows:
+
+- Trying diff values of k to get the best cluster value
+  + when k = 2 value is around 34
+  + when k = 3 value is around 29
+  + when k = 4 value is around 23
+  + when k = 6 value is around 21
+  + when k = 7 value is around 18
+  
+We can observe that there is a big range of Height tolerance on y-axis for k = 3 with the next values at 34 and and 23 for k = 2 and k = 4 respectively. Thus, we cluster the data into three clusters as it has the highest range which keeps our clustering stable.  
+
+### Choosing the best method:
+
+```{r}
+data_clean %>% ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "ward.D2") %>% cutree(k = 10)-> memb_ten_w
+data_clean %>% ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "average") %>% cutree(k = 10)-> memb_ten_al
+data_clean %>% ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "centroid") %>% cutree(k = 10)-> memb_ten_cm
+data_clean %>% ungroup() %>% select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "complete") %>% cutree(k = 10)-> memb_ten_cl
+```
+
+Average Method:
+```{r}
+adjustedRandIndex(memb_ten_w, memb_ten_al)
+```
+
+Centroid Method:
+```{r}
+adjustedRandIndex(memb_ten_w, memb_ten_cm)
+```
+
+Complete Method:
+```{r}
+adjustedRandIndex(memb_ten_w, memb_ten_cl)
+```
+
+
+The complete linkage method has the highest agreement with Ward D2 between the different types of clustering. If all the clustering methods give almost similar results, then we can safely say that the data has some evident observable patterns. If not, the data does not have any solid patterns to cluster it based on similarities. In our case, there is no solid evidence of clustering results from the different methods. Each method gives an almost new result. Thus we can say that from the given data it is hard to find patterns that are making the organizations go bankrupt. The closest method to Ward D2 is Complete Linkage method which is 44% similar to the Ward D2 method.
+
 
 # Limitations
 
@@ -696,3 +762,48 @@ autoplot(pca,label = TRUE,
   theme_bw()
 ```
 
+## Cluster Analysis 
+
+**Plots for Average, Complete, and Centroid**
+
+```{r ave, fig.cap="Dendogram with average method"}
+
+clust_data_ave <- data_clean %>% 
+  ungroup %>% 
+  dplyr::filter(Name != "Texaco Inc.") %>% 
+  dplyr::select(c(Assets, CPI, DaysIn, Employees, 
+                  Ebit, Liab, FilingRate, GDP, 
+                  PrimeFiling, Sales)) %>%
+  select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "average")
+clust_data_ave %>% plot(cex=.5)
+clust_data_ave %>% rect.hclust(k=3)
+```
+
+```{r cmp, fig.cap="Dendogram with complete method"}
+
+clust_data_cmp <- data_clean %>% 
+  ungroup %>% 
+  dplyr::filter(Name != "Texaco Inc.") %>% 
+  dplyr::select(c(Assets, CPI, DaysIn, Employees, 
+                  Ebit, Liab, FilingRate, GDP, 
+                  PrimeFiling, Sales)) %>%
+  select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "complete")
+clust_data_cmp %>% plot(cex=.5)
+clust_data_cmp %>% rect.hclust(k=3)
+```
+
+```{r cnt, fig.cap="Dendogram with centroid method"}
+
+clust_data_cnt <- data_clean %>% 
+  ungroup %>% 
+  dplyr::filter(Name != "Texaco Inc.") %>% 
+  dplyr::select(c(Assets, CPI, DaysIn, Employees, 
+                  Ebit, Liab, FilingRate, GDP, 
+                  PrimeFiling, Sales)) %>%
+  select_if(is.numeric) %>%
+  scale %>% dist() %>% hclust(method = "centroid")
+clust_data_cnt %>% plot(cex=.5)
+clust_data_cnt %>% rect.hclust(k=3)
+```
