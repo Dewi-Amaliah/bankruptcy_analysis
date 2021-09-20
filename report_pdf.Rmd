@@ -4,11 +4,11 @@ author: Aarathy Babu, Dewi Amaliah, Priya Dingorkar, Rahul Bharadwaj
 output: 
   bookdown::pdf_document2:
     toc: FALSE
-    latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, 
+                      out.width = "70%", fig.align = 'center', fig.show = 'hold')
 library(tidyverse)
 library(dplyr)
 library(visdat)
@@ -274,16 +274,28 @@ In order to gain insights from the data, we have further explored it.Below shown
 
 
 
-```{r}
+```{r, fig.cap= "Correlation plot of numeric variables in the cleaned data", out.width="70%"}
 A = cor(data_clean%>%select_if(is.numeric))
-corrplot::corrplot(A, method = 'number')
+
+cex.before <- par("cex")
+par(cex = 0.7)
+
+corrplot::corrplot(A, method = 'number',
+                   tl.col = "black", 
+                   tl.cex = 1/par("cex"),
+                   cl.cex = 1/par("cex"), 
+                   addCoefasPercent = TRUE)
+
+par(cex = cex.before)
+
+
 data_clean<- data_clean%>%
   dplyr::select(-HeadCityPop,-HeadCourtCityToDE)
 ```
 
 # Multidimensional Scaling (MDS)
 
-MDS is a statistical method to represent multidimensional data into lower-dimensional (2D) data. The `bankruptcy` data has 21 variables which can be considered as data with high dimensions. Thus, MDS is relevant to represent this data in two-dimensional visualisation. This method uses distance to do the job. Hence, we limit the MDS only to incorporate numerical variables so that we can use Euclidean distance or is known as classical MDS. We will also only incorporate numerical variables directly related to bankruptcy. Those variables are: `Assest`, `DaysIn`, `Employees`, `CPI`, `Ebit`, `Liab`, `FillingRate`, `GDP`, `PrimeFilling`, and `Sales`. These variables has different unit of measurements, hence we standardise it.
+MDS is a statistical method to represent multidimensional data into lower-dimensional (2D) data. Thus, MDS is relevant to represent bankruptcy data in two-dimensional visualisation. This method uses distance to do the job. Hence, we limit the MDS only to incorporate numerical variables so that we can use Euclidean distance or is known as classical MDS. We will also only incorporate numerical variables directly related to bankruptcy. Those variables are: `Assest`, `DaysIn`, `Employees`, `CPI`, `Ebit`, `Liab`, `FillingRate`, `GDP`, `PrimeFilling`, and `Sales`. These variables has different unit of measurements, hence we standardise it.
 
 ## Classical MDS
 
@@ -532,11 +544,11 @@ fviz_pca_var(pca_no_out, col.var = "black") +
 
 ## Data Cleaning 
 
-- Imputation of variable `HeadCourtCityToDE`
+**Imputation of variable `HeadCourtCityToDE`**
 
 As per our research online, we came to the conclusion that the `HeadCourtCityToDE` for [Divi Hotels, N.V.](https://www.bloomberg.com/profile/company/DVH:US) is 1126 miles where as for [Loewen Group, Inc](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001601) (British Columbia to Wilmington)  and [Philip Services Corp.](https://www.sedar.com/DisplayProfile.do?lang=EN&issuerType=03&issuerNo=00001613) (Ontario to Wilmington) is 2942 and 1234 miles respectively.
 
-- Imputation of variable `DaysIn`
+**Imputation of variable `DaysIn`**
 
 
   - `DaysIn` can be encoded equivalent to 121 days for [AP Industries, Inc.](https://casetext.com/case/in-re-ap-industries-inc?__cf_chl_jschl_tk__=pmd_0e9LcvX3fGC0nT5WJVBShbHDvK9GY2AMZnekCjslbN0-1631333530-0-gqNtZGzNAjujcnBszQd9) 
@@ -544,7 +556,7 @@ As per our research online, we came to the conclusion that the `HeadCourtCityToD
   - `DaysIn` can be encoded equivalent to 1944 days for [Daisy Systems Corp.](https://caselaw.findlaw.com/us-9th-circuit/1020075.html)  
 
 
-- Dealing Missing Values in `Sales` and `Employees` 
+**Dealing Missing Values in `Sales` and `Employees`** 
 
 ```{r}
 na_sales%>%
@@ -561,7 +573,7 @@ na_employees%>%
 ```
    
    
-- Checking Outliers
+**Checking Outliers**
 
 ```{r}
 out1 <- bankruptcy%>%
@@ -640,7 +652,7 @@ Figure \@ref(fig:cmds-industry) suggests that there is no clear specific pattern
 
 ## PCA 
 
-- PCA performed on the complete data including outliers
+**PCA performed on the complete data including outliers**
 
 ```{r}
 data_clean%>%
@@ -651,7 +663,6 @@ data_clean%>%
 ```{r}
 summary(pca)
 ```
-
 
 
 - Using the `summary` function we can infer the following:
