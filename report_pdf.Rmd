@@ -7,14 +7,13 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, 
-                      out.width = "70%", fig.align = 'center', fig.show = 'hold')
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.show = 'hold',
+                      out.width = "70%", fig.align = 'center')
 library(tidyverse)
 library(dplyr)
 library(visdat)
 library(splitstackshape)
 library(lubridate)
-library(patchwork)
 library(MASS)
 library(kableExtra)
 library(FactoMineR)
@@ -27,27 +26,10 @@ library(mclust)
 bankruptcy <- read_rds(here::here("data/Bankruptcy.rds"))
 ```
 
-# Introduction
-
-The UCLA-LoPucki Bankruptcy Research Database (BRD) is a UCLA School of Law data gathering, data linking, and data distribution initiative. The goal of the BRD is to encourage bankruptcy research by making bankruptcy data available to academic investigators worldwide. All of the data was gathered when the companies declared bankruptcy. In this study, we will use a variety of high-dimensional analysis approaches like Multidimensional Scaling, Principle Component Analysis and Clustering to extract useful insights from the data.
-
-```{r, out.width=450, eval = FALSE}
-knitr::include_graphics("data/bank.jpg")
-#link of the image - https://www.businessrescueexpert.co.uk/wp-content/uploads/2018/07/Assets-in-Bankruptcy.jpg
-```
-
-
-# Acknowledgment
-
-Our sincere gratitude goes out to Ruben Loaiza-Maya and the our tutor Ari Handayani for their guidance and support. Their culminating efforts have placed us in a situation where we can produce this report collectively while showcasing our competence to employ diverse solutions that can be used with high dimensional data.
-
 
 # Data Description
 
-This report is based on data from US businesses that declared bankruptcy between 1980 and 2000. The information is coming from the UCLA-LoPucki Brankruptcy Research Database. Let's take a closer look at these variables and what they mean. Let's go further into the dataset to see if we can find any examples of data cleaning or wrangling.
-
-
-The dataset has 436 observations and 7 variables with their description explained below.
+In this study, we will use a variety of high-dimensional analysis approaches like Multidimensional Scaling, Principle Component Analysis, and Clustering to extract useful insights from the data. This report is based on data from US businesses that declared bankruptcy between 1980 and 2000. The information is coming from the UCLA-LoPucki Brankruptcy Research Database. This datasets has 21 variables and 436 firms with their description explained below.
 
 - Name: Name of the firm
 - Assets: Total assets (in millions of dollars)
@@ -72,14 +54,12 @@ the case was filed
 - SICMajGroup: Standard industrial clasification code
 - YearFiled: Year bankruptcy was filed
 
-Let us further examine the bankruptcy statistics. We will undertake some preliminary data analysis. We will also go through the numerous approaches used for this high-dimensional data in detail later.
-
 
 # Preliminary Data Analysis
 
+Before carrying out further analysis of the data, let us conduct some preliminary data analysis. Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
 
-Before carrying out further analysis of the data, let us conduct some preliminary data analysis. From the summary shown below, we can see that the data is a high dimensional dataset with 21 variables, out of which 6 are character variables and 15 are numeric variables.
-
+From the summary shown below, we have 6 character variables and 15 numeric variables.
 
 ```{r prelim-skimr}
 glimpse(bankruptcy)
@@ -94,18 +74,20 @@ bankruptcy <- bankruptcy %>%
                           FirmEnd))
 ```
 
-The data credibility issues are checked by confirming if the `DaysIn`, `EmplUnion`, `Employees`, `HeadCourtCityToDE`,`MonthFiled`, `YearFiled` and `HeadCityPop` are non-negative values. It was found that there are observations where the `EmplUnion` values are more than `Employees` which was removed from the data and that certain companies have 1 Employee and 1 EmplUnion values as shown below, which is suspicious but since there is not any concrete evidence that these observations pose data credibility issues, these observations were not excluded for the analysis. 
+The data credibility issues are checked by confirming if the `DaysIn`, `EmplUnion`, `Employees`, `HeadCourtCityToDE`,`MonthFiled`, `YearFiled` and `HeadCityPop` are non-negative values. There are observations where the `EmplUnion` values are more than `Employees` which was removed from the data and that certain companies have 1 `Employees` and 1 `EmplUnion` values as shown below, which is suspicious but since there is not any concrete evidence that these observations pose data credibility issues, these observations were not excluded for the analysis. 
 
 ```{r}
 bankruptcy%>%
   filter(EmplUnion>=Employees)%>%
-  dplyr::select(Name,Employees,EmplUnion)
+  dplyr::select(Name,Employees,EmplUnion) %>%
+  kable(caption = "Credibility issues in Employees and EmplUnion")%>%
+  kable_styling(latex_options = "hold_position")
 bankruptcy <-  bankruptcy %>%
 filter(Name != "Promus Companies Inc. (Harrahs Jazz Co. only)")
 ```
 
 
-We have seperated `SICMajGroup` into a new factor variable `SIC` and its meaning in the `SICMajGroup` so as to make it more identifiable without the lengthy name.
+We have separated `SICMajGroup` into a new factor variable `SIC` and its meaning in the `SICMajGroup` so as to make it more identifiable without the lengthy name.
 
 ```{r prelim-sic}
 bankruptcy <- bankruptcy %>%
@@ -116,9 +98,9 @@ bankruptcy <- bankruptcy %>%
   mutate(SIC = as.factor(SIC))
 ```
 
-The missing values in the data has been visualized as shown in \@ref(fig:prelim-vismiss). Throughout our strategy, we have tried to retain the data as much as possible while maintaining high data quality and credibility. 
+The missing values in the data has been visualized as shown in figure \@ref(fig:prelim-vismiss). 
 
-It can be observed that `FirmEnd` has the highest number of missing values, followed by `EmplUnion`. The strategy employed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts the description of the end of Firm's existance , it doesn't provide significant value to the analysis and it can be excluded. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related and `EmplUnion` is be a subset of `Employees`, therefore removing `EmplUnion` which has too many missing values would not affect our analysis significantly as the variable Employees explains similar aspect. 
+It can be observed that `FirmEnd` has the highest number of missing values, followed by `EmplUnion`. The strategy employed is to remove the variables `FirmEnd` and `EmplUnion`. As the variable `FirmEnd` depicts the description of the end of Firm's existence. It doesn't provide significant value to the analysis and it can be excluded. Similarly `EmplUnion` is removed due to the fact that `Employees` and `EmplUnion` are closely related and `EmplUnion` is be a subset of `Employees`. Therefore, removing `EmplUnion` which has too many missing values would not affect our analysis significantly. 
 
 ```{r prelim-vismiss, fig.cap="Overview of missing values in the data"}
 vis_dat(bankruptcy)+
@@ -132,8 +114,9 @@ The missing values of `DaysIn` in 4 companies were encoded based on the publicly
 ```{r prelim-daysin}
 na_daysin <- filter(bankruptcy, is.na(DaysIn))
 na_daysin%>%
-  dplyr::select(c(Name,DaysIn))%>%
-  kableExtra::kable()%>%
+  dplyr::select(c(Name,DaysIn) )%>%
+  kableExtra::kable(caption = "Firms with missing values in DaysIn")%>%
+  kable_styling(latex_options = "hold_position") %>%
   kableExtra::kable_paper()
 ```
 
@@ -155,16 +138,15 @@ summary(bankruptcy$DaysIn)
 
 The summary statistics of the variable after imputation, suggests no suspicious outliers or anomalies as the bankruptcy can be a lengthy ordeal. 
 
-
-The missing values in `HeadCourtCityToDE` shown in the table below, are imputed using the values in `CityFiled`, `DENYOther`, and `HeadStAtFiling`. Considering the publicaly available data on headquarter address and the `CityFiled`, the distances between these cities were found and imputed into the data accordingly. See Appendix for more information.   
+The missing values in `HeadCourtCityToDE` shown in the table below are imputed using the values in `CityFiled`, `DENYOther`, and `HeadStAtFiling`. Considering the publicly available data on headquarter address and the `CityFiled`, the distances between these cities were found and imputed into the data accordingly (see Appendix).
  
-
 ```{r prelim-headquart}
 na_distance <- bankruptcy %>%
   filter(is.na(HeadCourtCityToDE))
 na_distance%>%
   dplyr::select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)%>%
-  kableExtra::kable()%>%
+  kableExtra::kable(caption = "Missing values in `HeadCourtCityToDE`")%>%
+  kable_styling(latex_options = "hold_position") %>%
   kableExtra::kable_paper()
 ```
 
@@ -178,24 +160,26 @@ summary(bankruptcy$HeadCourtCityToDE)
 bankruptcy%>%
   filter(HeadCourtCityToDE==1)%>%
   dplyr::select(Name,HeadCourtCityToDE,CityFiled,DENYOther,HeadStAtFiling)%>%
-  kableExtra::kable()%>%
+  kableExtra::kable(caption = "Firms with headquarters and the city filed in the same state")%>%
+  kable_styling(latex_options = "hold_position") %>%
   kableExtra::kable_paper()
 ```
 
 
-Exploring the summary statistics, it was observed that the minimum distance is 1 , when inspected the state of headquarters and the city filed is in the same state therefore it does not pose a data credibility issue. 
+Exploring the summary statistics, it was observed that the minimum distance is 1, when inspected the state of headquarters and the city filed is in the same state. Therefore it does not pose a data credibility issue. 
 
 With regards to the `Employees` variable, it was observed that there is a single observation that is missing data on its employees. Under closer examination of the `Sales` Variable, we observed that it was the same firm that had missing data on `Sales` as well. On closer inspection of this firm, the presence of missing values on the variable `Ebit` was also found, therefore we remove this observation considering the fact that this single observation has missing values of these three variables.
 
- 
-   
 ```{r}
 na_sales <- filter(bankruptcy, is.na(Sales))
 na_employees <- filter(bankruptcy, is.na(Employees))
 options(scipen = 999)
 bankruptcy%>%
   filter(Name=="County Seat, Inc.")%>%
-  dplyr::select(Name,Sales,Employees,Ebit)
+  dplyr::select(Name,Sales,Employees,Ebit) %>%
+  kable(caption = "Firms with missing values in Sales, Employees, and Ebit") %>%
+  kable_styling(latex_options = "hold_position") %>%
+  kable_paper()
 bankruptcy<- bankruptcy%>%
   filter(!is.na(Sales))
 ```
@@ -225,8 +209,7 @@ row.names(data_clean) <- data_clean$Name
 vis_dat(data_clean)
 ```
 
-The data was then checked for outliers, even though we haven't found suspicious outliers in majority of the variables (see Appendix for more information), outliers were found in `Ebit`, `Liab` , `Assets` and `Sales` as shown below in figure \@ref(fig:prelimoutlier-1) and \@ref(fig:prelimoutlier-2). Interestingly, these values belong to a single firm called **Texaco Inc.** This will be discussed further in the sections below.
-
+The data was then checked for outliers, even though we haven't found suspicious outliers in majority of the variables (see Appendix), outliers were found in `Ebit`, `Liab` , `Assets` and `Sales` as shown below in figure \@ref(fig:prelimoutlier-1) and \@ref(fig:prelimoutlier-2). Interestingly, these values belong to a single firm called **Texaco Inc.**. This will be discussed further in the sections below.
 
 ```{r prelimoutlier-1, fig.cap="Presence of Outliers in Sales and Assests"}
 p3 <- data_clean%>%
@@ -269,11 +252,7 @@ p3+p4
 p1+p2
 ```
 
-
-
-In order to gain insights from the data, we have further explored it.Below shown is a correlation plot. It is clear from the plot that `HeadCityPop`and `HeadCourtCityToDE` have no correlation with any of the other variables. Therefore, we omit these two variables from further analysis. 
-
-
+In order to gain insights from the data, we have further explored it. Below shown is a correlation plot. It is clear from the plot that `HeadCityPop`and `HeadCourtCityToDE` have no correlation with any of the other variables. Therefore, we omit these two variables from further analysis. 
 
 ```{r, fig.cap= "Correlation plot of numeric variables in the cleaned data", out.width="70%"}
 A = cor(data_clean%>%select_if(is.numeric))
@@ -463,17 +442,9 @@ The classical MDS solution plotted by year as shown in Figure \@ref(fig:cmds-yea
 
 # Principal Component Analysis (PCA)
 
-- Now that we've seen how to input this high-dimensional data into Multidimensional scaling (MDS) to obtain a low (typically 2) dimensional representation. Let us now perform a Principal Component Analysis (PCA), which is a dimensional-reduction method that is frequently used to reduce the dimensional of large data sets by transforming a large set of variables into a smaller one that still contains the majority of the information in the large set.
+In this section, we perform PCA, a dimension reduction method by transforming a large set of variables into a smaller one while retaining the variance of the data. We display the PCA without the Texaco Inc. as done in MDS (see Appendix for PCA including the outlier observation). We standardized our variables to ensure the results are not sensitive to the units of measurement. Thus, giving us more accurate analysis.
 
-- On performing a PCA on the clean dataset during the data investigation process we found that, just like MDS sees Texaco Inc. which comes under Petroleum SIC and Refining And Related Industries as the outlier we get similar results when we feed the complete dataset to carry out PCA.
-
-- Keeping in mind, the word limit we have constrained to show only the PCA using the data without any outliers. Note the complete analysis of PCA for the data can be found in the Appendix section at the end of this report.
-
-- Let's carry out PCA on our bankruptcy data. Lets investigate if our data is a good fit for PCA. Let's us further investigate how the variables in our data are correlated and how many PC's explain the variation of our data.
-
-- Before we apply this principle to our data, it is very important that we standardized our variables as this ensures that results are not sensitive to the units of measurement. Thus giving us more accurate analysis.
-
-## PCA without outlier
+## The PCA
 
 ```{r}
 nooutlier <- data_clean %>%
@@ -486,21 +457,20 @@ nooutlier%>%
 summary(pca_no_out)
 ```
 
-- Using the `summary` function we can infer the following:
-  + Proportion of variance explained by the first four PCs together is now 67.99%
-  + Proportion of variance explained by the first and second PC alone is 26.41% and 22.24% respectively
-  + Using kaisers rule, choose those PC's whose variance and standard deviation greater than 1, we will choose 5 PC's that explains the most variation in our data.
+From the output above we learn:
 
-- Let us now use the scree plot to find the total number of PC's that best explain our data.
+- Proportion of variance explained by the first four PCs together is now 67.99%.
+- Proportion of variance explained by the first and second PC alone is 26.41% and 22.24%, respectively.
+- Kaiser's rule, which choose the PC's whose variance and standard deviation greater than 1, suggests to choose 4 PCs. However, we will inspect it further using the scree plot. 
 
-```{r screeplot, fig.cap="Screeplot"}
+
+```{r screeplot, fig.cap="Screeplot of PCA on bankruptcy data"}
 screeplot(pca_no_out,type="lines") 
 ```
 
-- Interestingly the scree plot and the kaiser's rule do not agree with each other. But since the scree plot is a more accurate measure in helping us confirm that most of the variations is captured by the first three principal components from our dataset.
+- Interestingly the scree plot and the Kaiser's rule do not agree with each other. However, we refer to scree plot since it is more distinguishable to show the elbow structure.  
 
-- As we can see from the summary of our PCA that our third PC explains approx 11% of variation in our data but we cannot visualize this with a biplot. Nevertheless we still plot the biplot for our first two PC's as they explain around 50.00% of variation in our data.
-
+- The scree plot suggests to include 3 PCs which explain 68.75% variations of the data. However, we cannot visualise it in biplot, so we plot the first two PC's as they explain 57.87% of variation in our data. 
 
 ```{r biplotout, fig.cap="PCA Biplot without Outliers"}
 rownames(pca_no_out$x)<-pull(nooutlier,abb)
@@ -512,12 +482,13 @@ autoplot(pca_no_out,label = TRUE, label.size = 2.5,
 ```
 
 
-- Looking at the figure \@ref(fig:biplotout) we can infer the following:
-  + We can see the various spread of the different companies while filing for bankruptcy. We can see how these companies are been spread out in different direction showing different properties with the surrounding variables. For instance two companies that show similar characteristics are FDSI and LDVC and the ones that show very dissimilar characteristics to each other are FDSI and DESL. 
-  + The further away these vectors or variables are from a PC origin, the more influence they have on that PC. For instance taking a closer a look at the left quadrant, we infer that CPI has more influence, followed by GDP and FilingRate whereas EBit has the least influence among all the variables.
-  + We also know that variables at an angle of 90° indicates no correlation between them, In our data we can infer that Employees with GDP/CPI shows an angle of almost 90° thus showing no correlation between these variables.
-  + We also infer that variables with 180° angle indicates negative correlation. In our case we can say that PrimeFiling is negative correlated with GDP, CPI and FilingRate making an almost 180° angle.
-  + Similarly,variables with angle close to 0° indicates positive correlation. In our dataset we can see that CPI and GDP are highly positively correlated. Assest, Liab, Ebit and Sales are all also positively correlated as the angle between all them is nearly zero.
+From figure \@ref(fig:biplotout), we can infer the following:
+
+- The firms are spread out in different direction showing different properties with the surrounding variables. For instance, two companies that show similar characteristics are FDSI and LDVC and the ones that show very dissimilar characteristics to each other are FDSI and DESL. 
+- The further away these vectors or variables are from a PC origin, the more influence they have on that PC. For instance taking a closer a look at the left quadrant, we infer that CPI has more influence, followed by `GDP` and `FilingRate` whereas `Ebit` has the least influence among all the variables.
+- `Employees` and `GDP`/`CPI` shows an angle of almost 90°. Thus, there is no correlation between these variables.
+- `PrimeFiling` is negatively correlated with `GDP`, `CPI`, and `FilingRate` since the angle is almost 180°.
+- `CPI` and `GDP `are highly positively correlated. `Assets`, `Liab`, `Ebit`, and `Sales` are all also positively correlated as the angle between them is nearly zero.
 
 
 ```{r corrplot, fig.cap="PCA Correlation Plot"}
@@ -527,20 +498,19 @@ fviz_pca_var(pca_no_out, col.var = "black") +
   theme_bw()
 ```
 
-- We can also refer to figure \@ref(fig:corrplot) for more clear visuals of the angles between variables making it clearly for the audience to distinguish between the variables that are positively, negatively or not correlated at all.
+Figure \@ref(fig:corrplot) shows a clearer visuals of the angles between variables so that we can distinguish between the variables that are positively, negatively, or not correlated at all.
 
 # Cluster Analysis
-
 
 Clustering is the process of grouping the observations into categories or groups of observations based on their similarities. It helps us identify the commonalities and similar characteristics within the data which help us answer business questions.
 
 In this case, we can validate if there are any similarities among the companies that are going bankrupt. This helps us understand the most possible reason for organisations going bankrupt and possibly help prevent the same in the future.
 
-There are two main types of clustering namely, hierarchical and non-hierarchical clustering. Non hierarchical clustering with the number of clusters known ex ante are useful if the number of clusters can be determined beforehand. We will mainly focus on Hierarchical clustering method.
+There are two main types of clustering namely, hierarchical and non-hierarchical clustering. Non-hierarchical clustering with the number of clusters known ex ante are useful if the number of clusters can be determined beforehand. We will mainly focus on Hierarchical clustering method.
 
 ### Hierarchical Clustering:
 
-```{r}
+```{r clust, fig.cap= "Dendrogram with Ward's menthod and 3 clusters.", out.width="60%"}
 clust_data <- data_clean %>% 
   ungroup %>% 
   dplyr::filter(Name != "Texaco Inc.") %>% 
@@ -553,18 +523,9 @@ clust_data %>% plot(cex=.5)
 clust_data %>% rect.hclust(k=3)
 ```
 
-Ward D2 method gives the best clustering outcome with reasonable sized clusters so we compare all other clusters with this method.
+Ward D2 method gives the best clustering outcome with reasonable sized clusters so we compare all other clusters with this method (See Appendix for other methods).
 
-The tolerance values for different number of clusters is as follows:
-
-- Trying diff values of k to get the best cluster value
-  + when k = 2 value is around 34
-  + when k = 3 value is around 29
-  + when k = 4 value is around 23
-  + when k = 6 value is around 21
-  + when k = 7 value is around 18
-  
-We can observe that there is a big range of Height tolerance on y-axis for k = 3 with the next values at 34 and and 23 for k = 2 and k = 4 respectively. Thus, we cluster the data into three clusters as it has the highest range which keeps our clustering stable.  
+Figure \@ref(fig:clust) shows that there is a big range of Height tolerance on y-axis for k = 3 with the next values at 34 and and 23 for k = 2 and k = 4, respectively (see Appendix for height with different *k*). Thus, we cluster the data into three clusters as it has the highest range which keeps our clustering stable.  
 
 ### Choosing the best method:
 
@@ -600,11 +561,11 @@ The complete linkage method has the highest agreement with Ward D2 between the d
 
 # Limitations
 
-- We only use numerical data in the analysis due to the complexity of incorporating non-numeric data. However, we tried to also display that categorical variable when visualising the MDS result. 
-- One of the most important limitation in our PCA analysis is that, as seen in the screeplot at figure we inferred that our data was most explained by the the first three PCs. But due to the limitations of biplot we have visualized our data using the first and the second PCs only. This mean they might be certain patterns in the data and to visualize third PCs we will further need to work on the structure of the data.
+- We only use numerical data in the MDS analysis due to the complexity of incorporating non-numeric data. However, we tried to also display that categorical variable when visualising the MDS result. 
+- The scree plot infer that our data was mostly explained by the the first three PCs. However, due to the limitations of biplot we have visualized our data using the first and the second PCs only. This mean they might be certain patterns in the data and to visualize third PCs we will further need to work on the structure of the data.
+- Since our focus is on hierarchical clustering, it does not consider all possible clusters like in k-means clustering.
 
-
-# Conclusions
+\pagebreak
 
 # Appendix
 
@@ -626,15 +587,17 @@ As per our research online, we came to the conclusion that the `HeadCourtCityToD
 
 ```{r}
 na_sales%>%
-  dplyr::select(Name,Sales)%>%
-  kableExtra::kable()%>%
+  dplyr::select(Name,Sales) %>%
+  kableExtra::kable(caption = "Missing values in Sales") %>%
+  kable_styling(latex_options = "hold_position") %>%
   kableExtra::kable_paper()
 ```
 
 ```{r}
 na_employees%>%
   dplyr::select(Name,Employees)%>%
-  kableExtra::kable()%>%
+  kableExtra::kable(caption = "Missing values in Employees")%>%
+  kable_styling(latex_options = "hold_position") %>%
   kableExtra::kable_paper()
 ```
    
@@ -764,9 +727,16 @@ autoplot(pca,label = TRUE,
 
 ## Cluster Analysis 
 
+**The tolerance values for different number of clusters**
+  + when k = 2 height is around 34
+  + when k = 3 height is around 29
+  + when k = 4 height is around 23
+  + when k = 6 height is around 21
+  + when k = 7 height is around 18
+
 **Plots for Average, Complete, and Centroid**
 
-```{r ave, fig.cap="Dendogram with average method"}
+```{r ave, fig.cap="Dendrogram with average method"}
 
 clust_data_ave <- data_clean %>% 
   ungroup %>% 
@@ -780,7 +750,7 @@ clust_data_ave %>% plot(cex=.5)
 clust_data_ave %>% rect.hclust(k=3)
 ```
 
-```{r cmp, fig.cap="Dendogram with complete method"}
+```{r cmp, fig.cap="Dendrogram with complete method"}
 
 clust_data_cmp <- data_clean %>% 
   ungroup %>% 
@@ -794,7 +764,7 @@ clust_data_cmp %>% plot(cex=.5)
 clust_data_cmp %>% rect.hclust(k=3)
 ```
 
-```{r cnt, fig.cap="Dendogram with centroid method"}
+```{r cnt, fig.cap="Dendrogram with centroid method"}
 
 clust_data_cnt <- data_clean %>% 
   ungroup %>% 
@@ -807,3 +777,72 @@ clust_data_cnt <- data_clean %>%
 clust_data_cnt %>% plot(cex=.5)
 clust_data_cnt %>% rect.hclust(k=3)
 ```
+
+
+# Acknowledgment
+
+Our sincere gratitude goes out to Ruben Loaiza-Maya and the our tutor Ari Handayani for their guidance and support. Their culminating efforts have placed us in a situation where we can produce this report collectively while showcasing our competence to employ diverse solutions that can be used with high dimensional data. 
+
+# References 
+
+Loaiza-Maya, Ruben. (2021). Cluster Analysis. High Dimensional Data Analysis Lecture Notes. 
+
+Loaiza-Maya, Ruben. (2021). Multidimensional Scaling. High Dimensional Data Analysis Lecture Notes.
+
+Loaiza-Maya, Ruben. (2021). Principal Component Analysis. High Dimensional Data Analysis Lecture Notes.
+
+# R Packages Used
+
+Allaire JJ and Yihui Xie and Jonathan McPherson and Javier Luraschi and Kevin Ushey and Aron
+  Atkins and Hadley Wickham and Joe Cheng and Winston Chang and Richard Iannone (2020).
+  rmarkdown: Dynamic Documents for R. R package version 2.5. URL https://rmarkdown.rstudio.com.
+
+Grolemund G., Hadley Wickham (2011). Dates and Times Made Easy with
+  lubridate. Journal of Statistical Software, 40(3), 1-25. URL
+  https://www.jstatsoft.org/v40/i03/.
+  
+Horikoshi M., Yuan Tang (2016). ggfortify: Data Visualization Tools for Statistical
+  Analysis Results. https://CRAN.R-project.org/package=ggfortify
+  
+Kassambara A., Fabian Mundt (2020). factoextra: Extract and Visualize the Results of
+  Multivariate Data Analyses. R package version 1.0.7.
+  https://CRAN.R-project.org/package=factoextra
+
+Le S., Julie Josse, Francois Husson (2008). FactoMineR: An R Package for Multivariate
+  Analysis. Journal of Statistical Software, 25(1), 1-18. 10.18637/jss.v025.i01
+
+Mahto A (2019). splitstackshape: Stack and Reshape Datasets After Splitting Concatenated
+  Values. R package version 1.4.8. https://CRAN.R-project.org/package=splitstackshape
+
+Pedersen T.L. (2020). patchwork: The Composer of Plots. R package version
+  1.1.1. https://CRAN.R-project.org/package=patchwork
+
+Scrucca L., Fop M., Murphy T. B. and Raftery A. E. (2016) mclust 5: clustering,
+  classification and density estimation using Gaussian finite mixture models The R
+  Journal 8/1, pp. 289-317
+
+Slowikowski K (2021). ggrepel: Automatically Position Non-Overlapping Text
+  Labels with 'ggplot2'. R package version 0.9.1.
+  https://CRAN.R-project.org/package=ggrepel
+
+Tierney N (2017). “visdat: Visualising Whole Data Frames.” _JOSS_, *2*(16), 355. doi:
+10.21105/joss.00355 (URL: https://doi.org/10.21105/joss.00355), <URL:
+http://dx.doi.org/10.21105/joss.00355>.
+
+Venables, W. N. & Ripley, B. D. (2002) Modern Applied Statistics with S. Fourth Edition.
+  Springer, New York. ISBN 0-387-95457-0
+  
+Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43), 1686,
+  https://doi.org/10.21105/joss.01686
+  
+Wickham, Romain François, Lionel Henry and Kirill Müller (2021). dplyr: A Grammar of
+  Data Manipulation. R package version 1.0.7. https://CRAN.R-project.org/package=dplyr
+
+Xie, Y. (2021). knitr: A General-Purpose Package for Dynamic Report Generation
+  in R. R package version 1.33.
+
+Xie, Y. (2021). knitr: A General-Purpose Package for Dynamic Report Generation
+  in R. R package version 1.33.
+
+Zhu, Hao (2021). kableExtra: Construct Complex Table with 'kable' and Pipe Syntax.
+  R package version 1.3.4. https://CRAN.R-project.org/package=kableExtra
